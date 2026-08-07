@@ -59,7 +59,7 @@ class CameraManager:
 
 ## 📦 环境依赖
 
-**系统层**（Ubuntu 24.04 arm64 / Debian）：
+**系统层**（Ubuntu 24.04 arm64）：
 
 ```bash
 sudo apt update
