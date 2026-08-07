@@ -57,6 +57,10 @@ class CameraManager:
 
 > 若使用普通 USB/内置摄像头，可将 `CameraManager` 改为 `cv2.VideoCapture(0)`（并删除 `rpicam-vid` 相关逻辑），其余手势流水线完全复用。
 
+### 目标帧率
+
+游戏的标准**目标帧率为 60 FPS**（`TARGET_FPS = 60`），由"计算式精确限帧（`time.sleep` 补齐每帧余量） + `pygame.clock.tick` 兜底"双重机制维持。实际帧率取决于主机负载（MediaPipe 手势推理 + Pygame 渲染），程序会按秒统计并在界面上实时显示当前 FPS。
+
 ---
 
 ## 📦 环境依赖
