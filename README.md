@@ -26,7 +26,7 @@
 | --- | --- |
 | 主机 | Raspberry Pi 5（4GB 内存，32GB SD 卡），运行 **Ubuntu 24.04 (arm64)** |
 | 摄像头 | Raspberry Pi Camera Module 3（CSI 接口），由 `rpicam-vid`(libcamera) 输出 MJPEG 流 |
-| 显示 | 1920×1200 HDMI 显示器（程序以当前桌面分辨率**全屏**运行） |
+| 显示 | 1920×1200 HDMI 显示器；系统缩放 166% 后程序以**实际渲染分辨率 1152×720 全屏**运行（逻辑全屏铺满屏幕） |
 | 音频 | USB 音响，`pygame.mixer` 播放采样 |
 | 键盘 | USB 键盘，仅用于 `ESC` 退出、`SPACE` 暂停、`Q` 退出 |
 
