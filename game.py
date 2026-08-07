@@ -1767,14 +1767,6 @@ class ResultScreen:
                 self.rating = "S"
                 self.rating_color = (255, 215, 0)
                 self.rating_description = "Good Full Combo!"
-        elif miss_rate <= 0.02:
-            self.rating = "S+"
-            self.rating_color = GOLD
-            self.rating_description = "Almost Perfect!"
-        elif miss_rate <= 0.05:
-            self.rating = "S"
-            self.rating_color = GOLD
-            self.rating_description = "Excellent!"
         elif miss_rate <= 0.10:
             self.rating = "A"
             self.rating_color = GREEN
