@@ -131,8 +131,8 @@ if frame is not None and camera_available:
 
 关键点索引约定（MediaPipe Hands）：
 
-- `0` 手腕；`1/5/9/13/17` 五指掌指关节（MCP）；`2/6/10/14/18` PIP；`3/7/11/15/19` PIP→DIP；`4/8/12/16/20` 指尖。
-- 拇指用 `3`↔`4` 的 **x** 方向判断；其余手指用指尖与 PIP 的 **y** 方向判断。
+- `0` 手腕；`1/5/9/13/17` 五指掌指关节（MCP）；`2/6/10/14/18` PIP（近端指间关节）；`3/7/11/15/19` DIP（远端指间关节）；`4/8/12/16/20` 指尖。
+- 拇指用 `3`（IP 指间关节）↔`4`（指尖）的 **x** 方向判断；其余手指用指尖与 PIP（点 `6/10/14/18`）的 **y** 方向判断。
 
 ### 2. 镜像与坐标归一化
 
@@ -168,6 +168,72 @@ if idx == 0:
 
 > `MOUSE_SCALE=5.0` 意味着手掌只需在画面内移动约 **1/5** 范围即可横扫整屏，适合站立远距离游玩；可按手感下调。
 
+#### 单手优先：仅第一只手控制光标
+
+主循环用 `enumerate(...)` 遍历检测到的双手，但**只有索引 `idx == 0` 的那只手**参与光标映射与握拳判定：
+
+```2979:3007:game.py
+if idx == 0:
+    hx, hy = get_hand_center(hand_landmarks)
+    ...
+    mouse_x = mouse_x * (1 - 0.2) + screen_x * 0.2   # 低通平滑
+    mouse_y = mouse_y * (1 - 0.2) + screen_y * 0.2
+
+    if is_fist(finger_states, is_left):
+        fist_timer += 1
+        if fist_timer >= FIST_THRESHOLD:
+            is_fisting = True
+    else:
+        fist_timer = 0
+        is_fisting = False
+```
+
+也就是说：
+
+- 第一只被 MediaPipe 检出的手 → 驱动**屏幕光标移动** + 触发**握拳点击**；
+- 第二只手（若存在）→ 仅提供 `finger_states` 用于**音符弹奏**，不影响光标。
+
+这样设计的好处是：游玩时一只手悬停在菜单附近也不会"抢走"光标，另一只手可专心弹奏；代价是光标始终跟随先被检测到的那只手，若换手顺序变化可能出现光标短暂跳变。
+
+#### 光标状态机（`Cursor` 类）
+
+主循环每帧把 `(mouse_x, mouse_y, is_fisting)` 喂给 `Cursor.update()`，`Cursor` 在此基础上维护一套**点击状态机**，与第 5 节的"握拳迟滞"配合实现稳定点击：
+
+| 字段 | 含义 |
+| --- | --- |
+| `click_hold_frames` | 当前连续握拳帧数，越界到 `CLICK_HOLD_THRESHOLD=10` 时判定为一次有效点击 |
+| `click_progress` | `click_hold_frames / CLICK_HOLD_THRESHOLD`，取值 `[0,1]`，用于绘制**环形倒计时进度条** |
+| `click_available` | 握拳满 10 帧后置 `True`，表示"可点击"；菜单系统通过 `is_click_active()` 读取 |
+| `click_triggered` | 该次点击是否已被菜单消费（`consume_click()` 置位），**保证一次握拳只触发一次点击** |
+| `reset_timer = 8` | 触发点击后进入 8 帧冷却，期间绘制**发光脉冲**反馈，随后复位 |
+
+状态流转（见 `game.py` `Cursor.update`）：
+
+```
+握拳开始 → click_hold_frames 累加、click_progress 递增（画面画环形进度）
+   └─ 满 10 帧 → click_available = True、进入 8 帧 reset_timer（发光脉冲）
+        └─ 菜单 is_click_active() 命中 → consume_click() 消费，click_triggered=True
+松拳   → click_progress 每帧衰减 0.03，恢复初始
+```
+
+绘制表现（`Cursor.draw`）：
+
+- **悬停 / 握拳中**：以光标为圆心画出随 `click_progress` 增长的白色**环形进度条**，直观提示"还需保持握拳多久才会点击"。
+- **点击触发瞬间**：在光标中心叠加一圈白色**发光脉冲**，作为确认反馈。
+
+#### 光标可见性规则
+
+光标并非全程可见，按界面状态切换（`cursor.set_visible()`）：
+
+| 界面 | 光标可见？ | 原因 |
+| --- | --- | --- |
+| 开始 / 选曲 / 难度菜单 | ✅ 显示 | 需用手掌移动光标、握拳点选 |
+| 暂停菜单 | ✅ 显示 | 需在菜单内点选"继续/退出" |
+| 结算界面 | ✅ 显示 | 需点选"重玩/返回菜单" |
+| 游戏内（演奏中） | ❌ 隐藏 | 此阶段用"弯曲手指"弹奏，无需光标，隐藏可避免遮挡轨道 |
+
+因此：进入演奏（`start_game` / `demo`）时 `cursor.set_visible(False)`，回到任意菜单时 `cursor.set_visible(True)`。
+
 ### 4. 每根手指的伸展状态
 
 `get_finger_states` 用几何阈值给出每根手指是否"伸展"（布尔值）。由于做了镜像，判定时需注意左右手的 x 方向符号相反：
@@ -189,6 +255,23 @@ def get_finger_states(hand_landmarks, is_left_hand):
         finger_states['right_ring']   = lm[16].y < lm[14].y
         finger_states['right_pinky']  = lm[20].y < lm[18].y
 ```
+
+#### 用到的关节与判断依据
+
+MediaPipe Hands 给每根手指标了 4 个关键点（拇指 3 个），由根到尖排列。本项目判断"是否伸展"时，用**指尖**与**中间关节**做比较：
+
+| 手指 | 指尖（TIP） | 比较的中段关节 | 比较方向 | 含义 |
+| --- | --- | --- | --- | --- |
+| 食指 | `8` | `6`（**PIP** 近端指间关节） | y | 指尖在 PIP 上方（y 更小）＝伸展 |
+| 中指 | `12` | `10`（**PIP**） | y | 同上 |
+| 无名指 | `16` | `14`（**PIP**） | y | 同上 |
+| 小指 | `20` | `18`（**PIP**） | y | 同上 |
+| 拇指 | `4`（TIP） | `3`（**IP** 指间关节，拇指无 PIP） | x | 见下 |
+
+- **PIP（Proximal Interphalangeal Joint，近端指间关节）**：四指的中间关节（点 `6/10/14/18`）。因为手指正常的屈伸发生在 y 方向（图像坐标系 y 轴向下），所以"向上伸"时指尖 y 小于 PIP 的 y，以此判定伸展；弯曲（按下）时指尖 y 大于 PIP 的 y。
+- **拇指特殊**：拇指是侧向开合的，没有 PIP，只有 **IP（Interphalangeal，指间关节，点 `3`）**。因此拇指不用 y、而用 **x 方向**比较指尖 `4` 与 IP `3`：做镜像后，左手 `lm[4].x > lm[3].x`、右手 `lm[4].x < lm[3].x` 表示拇指张开（伸展）。
+
+> 注：第 1 节关键点索引约定中，`2/6/10/14/18` 为 PIP，`3/7/11/15/19` 实为 **DIP（远端指间关节）** 而非 PIP→DIP；本游戏只用到了 PIP（`6/10/14/18`）判断四指伸展、用 IP（`3`）判断拇指，并未使用 DIP。
 
 要点：非拇指手指"向上伸"时指尖 `y` 小于 PIP 的 `y`（图像坐标系 y 轴向下）；拇指用左右向 `x` 判断开合。
 
@@ -302,9 +385,9 @@ for note in self.notes:
 - **曲目**：内置 `Twinkle Twinkle`、`Happy Birthday`、`Jingle Bells`，每首以 `(音名, 时值)` 序列定义于 `PianoSheet`。
 - **难度**：`Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×` 控制音符下落速度与生成节奏（`speed_multiplier`）。
 - **轨道生成**：每个音符随机分配到 1–10 号轨道，再按曲目的 `scale_notes` 把简谱音名映射到真实音高（如 `C4`/`D5`）。
-- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，找不到时自动回退到同音名其它八度或 `C4`，并以缓存避免重复加载。
+- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`。
 - **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
-- **暂停/退出**：游戏内按 `SPACE` 暂停（握拳无法暂停，因检测不到手时会自动暂停）；`ESC` 逐级退出；`Q` 直接退出。
+- **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。
 
 ---
 
@@ -355,8 +438,6 @@ perfect_rate = perfect_count / total_notes
 | **SSS** | `miss_rate == 0` 且 `perfect_rate ≥ 0.85` | Excellent Full Combo! |
 | **SS** | `miss_rate == 0` 且 `perfect_rate ≥ 0.70` | Great Full Combo! |
 | **S** | `miss_rate == 0`（其余） | Good Full Combo! |
-| **S+** | `miss_rate ≤ 0.02` | Almost Perfect! |
-| **S** | `miss_rate ≤ 0.05` | Excellent! |
 | **A** | `miss_rate ≤ 0.10` | Great! |
 | **B** | `miss_rate ≤ 0.15` | Good! |
 | **C** | `miss_rate ≤ 0.25` | Fair |
