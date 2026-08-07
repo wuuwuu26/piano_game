@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 日志
+*.log
+
+# 摄像头命名管道（运行时在 /tmp 下创建，不应入库）
+camera_pipe
+/tmp/camera_pipe
