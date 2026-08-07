@@ -362,7 +362,6 @@ perfect_rate = perfect_count / total_notes
 | **C** | `miss_rate ≤ 0.25` | Fair |
 | **D** | `miss_rate ≤ 0.40` | Needs Practice |
 | **F** | `miss_rate > 0.40` | Keep Trying! |
-| *No Data* | 本局无任何音符 | No notes played |
 
 > 规则要点：**全连击（无 MISS）**时按 PERFECT 率细分（SSS+ / SSS / SS / S）；一旦漏失，仅按漏失率由高到低评级（S+ → F）。结算界面（`Assets/Song_Completed_Menu.png`）会同时展示分数、最大连击、`Perfect/Good/Miss` 计数、准确率与评级。
 
@@ -451,6 +450,48 @@ piano_game/
 ├── .gitignore
 └── README.md
 ```
+
+---
+
+## 💾 缓存说明
+
+程序在运行过程中会在本地生成两类缓存，便于二次启动加速与离线运行：
+
+1. **背景图缓存**：`bg_cache/`（位于仓库根目录，运行时自动创建）
+   - 首次启动会从 Unsplash 下载 4 张背景图（主菜单 / 选曲 / 暂停 / 结算），按 1920×1200 原始尺寸保存为 `main.jpg`、`song.jpg`、`pause.jpg`、`result.jpg`。
+   - 之后启动直接读取本地文件，**不再联网**；若下载失败则用渐变色降级背景。
+   - 该目录已在 `.gitignore` 中忽略，不会进入 Git 仓库。
+
+2. **运行时内存缓存**（不落盘，进程退出即清空）：
+   - `SAMPLE_SOUND_CACHE`：把 `~/Piano` 下已加载的 `pygame.mixer.Sound` 对象按 `音符名_力度` 缓存（上限 500 个），避免每次击键重复读盘解码；找不到对应采样时会自动回退到同音名其它八度或 `C4`。
+   - `BG_GRADIENT_CACHE` / `ROUNDED_RECT_CACHE` / `PRERENDERED_TEXTS` / `FINGER_STATE_CACHE` / `glow_cache` / `bar_fill_cache`：分别缓存渐变背景、圆角矩形、预渲染文字、手指状态、发光与进度条等高频渲染结果，减少重复计算。
+
+> 钢琴采样 **不** 缓存在仓库内，始终从 `~/Piano`（环境变量展开后的用户主目录下 `Piano/`）实时读取，并通过 `SAMPLE_SOUND_CACHE` 在内存中复用。
+
+---
+
+## 🎵 曲谱与 88 键音频的映射
+
+### 1. 88 键采样如何对应到音符
+
+`game.py` 将 88 个 wav 与标准音名一一绑定：`NOTE_NAMES_88` 从 **A0（MIDI 21）** 到 **C8（MIDI 108）** 排列，`tone(1).wav` ~ `tone(88).wav` 依次对应。通过 `NOTE_INDEX_LOOKUP` / `NOTE_TO_MIDI` 完成「音名（含 `Db`/`Eb` 等降号别名）↔ 索引 ↔ MIDI 编号」的三向查表，因此升降号音也能正确命中采样。
+
+### 2. 曲谱中的简谱如何落到具体音
+
+每首曲谱在 `PianoSheet.get_song()` 中以「简谱数字 + 八度符号」描述，例如 `'1'`、`'5'`、`'1''`（高八度）、`'6'`、`'7'`，并配一张 `scale_notes` 映射表把简谱数字翻译成带八度的真实音名：
+
+| 曲谱 | scale_notes 示例 | 说明 |
+| --- | --- | --- |
+| Twinkle Twinkle | `1→C4, 2→D4 … 7→B4` | C 大调，中音区 |
+| Happy Birthday | `5→G4, 6→A4, 7→B4, 1'→C5 … 4'→F5` | 含高八度 |
+| Jingle Bells | `1→C4 … 5→G4` | C 大调五音 |
+| Ode to Joy | `1→C4 … 7'→B5, 1''→C6` | 跨三个八度 |
+
+游戏循环按 `notes` 列表（每个元素为 `(简谱数字, 时值)`）依次下落音符；当玩家命中时，先用 `parse_note_name_simple()` 把简谱数字解析为 `(音名, 八度)`，再经 `get_sample_file_for_note()` 映射到 `tone(n).wav` 并播放，从而实现「简谱 → 真实钢琴采样」的闭环。
+
+### 3. 曲谱来源
+
+> 游戏内置曲谱（Twinkle Twinkle / Happy Birthday / Jingle Bells / Ode to Joy 等）均由作者根据**网络上的乐曲简谱**人工整理、转换为上述简谱数字格式而来，仅用于演示与学习，版权归原曲作者所有。
 
 ---
 
