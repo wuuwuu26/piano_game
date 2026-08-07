@@ -459,4 +459,6 @@ piano_game/
 
 ## 📄 License
 
-本项目以 MIT License 开源，详见 [LICENSE](LICENSE)。钢琴采样版权归原作者所有，仅用于学习与非商业用途。
+本项目以 MIT License 开源，详见 [LICENSE](LICENSE)。
+
+钢琴采样来源：[open-source-toolkit/870f3](https://gitcode.com/open-source-toolkit/870f3.git)，版权归原作者所有，仅用于学习与非商业用途。
