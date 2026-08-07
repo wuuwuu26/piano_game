@@ -20,16 +20,15 @@
 
 ## 🔧 硬件配置
 
-本项目面向 **Raspberry Pi + 官方 CSI 摄像头** 验证，但架构也适用于任意带摄像头的 Linux/macOS/Windows 机器。
+本项目在 **Raspberry Pi 5** 上验证通过，但架构也适用于任意带摄像头的 Linux/macOS/Windows 机器。
 
 | 部件 | 说明 |
 | --- | --- |
-| 主机 | Raspberry Pi 4B（推荐 4GB+ 内存），运行 Raspberry Pi OS |
-| 摄像头 | Raspberry Pi Camera Module（CSI 接口），通过 `rpicam-vid`(libcamera) 输出 |
-| 显示 | HDMI 显示器（程序以当前桌面分辨率**全屏**运行） |
-| 音频 | 3.5mm 或 HDMI 音频输出，`pygame.mixer` 播放采样 |
-| 光照 | 均匀正面光最佳；避免强逆光导致手部关键点抖动 |
-| 可选 | 键盘（仅用于 `ESC` 退出、`SPACE` 暂停、`Q` 退出） |
+| 主机 | Raspberry Pi 5（4GB 内存，32GB SD 卡），运行 **Ubuntu 24.04 (arm64)** |
+| 摄像头 | Raspberry Pi Camera Module 3（CSI 接口），由 `rpicam-vid`(libcamera) 输出 MJPEG 流 |
+| 显示 | 1920×1200 HDMI 显示器（程序以当前桌面分辨率**全屏**运行） |
+| 音频 | USB 音响，`pygame.mixer` 播放采样 |
+| 键盘 | USB 键盘，仅用于 `ESC` 退出、`SPACE` 暂停、`Q` 退出 |
 
 ### 摄像头数据流（命名管道）
 
@@ -60,11 +59,11 @@ class CameraManager:
 
 ## 📦 环境依赖
 
-**系统层**（Raspberry Pi OS / Debian）：
+**系统层**（Ubuntu 24.04 arm64 / Debian）：
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip libcamera-apps   # libcamera-apps 提供 rpicam-vid
+sudo apt install -y python3 python3-pip rpicam-apps   # rpicam-apps 提供 rpicam-vid
 ```
 
 **Python 依赖**（见 `requirements.txt`）：
@@ -302,8 +301,68 @@ for note in self.notes:
 - **难度**：`Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×` 控制音符下落速度与生成节奏（`speed_multiplier`）。
 - **轨道生成**：每个音符随机分配到 1–10 号轨道，再按曲目的 `scale_notes` 把简谱音名映射到真实音高（如 `C4`/`D5`）。
 - **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，找不到时自动回退到同音名其它八度或 `C4`，并以缓存避免重复加载。
-- **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/good/hit/miss` 计数、`accuracy` 准确率，结算界面展示评级。
+- **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
 - **暂停/退出**：`SPACE` 或握拳暂停；`ESC` 逐级退出；`Q` 直接退出。
+
+---
+
+## 🏆 计分与评级
+
+### 1. 命中判定与单次得分
+
+当音符底边进入判定带 `[hit_line, hit_line + hit_zone_height]`（判定带高 35px，判定线 `hit_line = 屏幕高度 - 90`）且对应轨道手指被按下时，按**音符中心与判定带中心的像素距离 `distance`** 评级并结算分数：
+
+| 评级 | 距离阈值 | 基础分 | 连击加成 | 提示色 |
+| --- | --- | --- | --- | --- |
+| PERFECT! | `distance < 10px` | 100 | `+ combo × 5` | 绿 |
+| GREAT! | `distance < 22px` | 70 | `+ combo × 3` | 青 |
+| GOOD | `distance < 35px` | 50 | `+ combo × 2` | 蓝 |
+| MISS | 音符越过屏幕底部仍未被命中 | 0 | 连击清零 | 红 |
+
+单次得分 = **基础分 + 当前连击数 × 系数**。例如当前连击为 20 时打出 PERFECT，本次得分 = 100 + 20×5 = 200。连击越高，单次收益越高，是冲分的关键。
+
+> 判定阈值与命中机制详见上文「手势识别实现 → 7. 命中判定与评级」。
+
+### 2. 连击（Combo）
+
+- 每成功命中一个音符，`combo` 加 1，并记录本局 `max_combo`（最高连击）。
+- 出现 **MISS**（音符漏掉 / 越过屏幕底部）时 `combo` 立即归零。
+- 连击数直接参与得分公式的加成项，因此保持长连击能放大总分。
+
+### 3. 准确率（Accuracy）
+
+```text
+total_notes  = perfect_count + good_count + miss_count
+accuracy     = (perfect_count + good_count) / total_notes × 100%
+```
+
+其中 `good_count` 同时计入 **GREAT** 与 **GOOD**（二者在统计上合并为 "Good"），MISS 不计入命中。
+
+### 4. 结算评级（Rating）
+
+曲目结束（或演示结束）调用 `calculate_rating()`，依据 **漏失率 `miss_rate`** 与 **PERFECT 率 `perfect_rate`** 给出最终评级：
+
+```text
+miss_rate    = miss_count    / total_notes
+perfect_rate = perfect_count / total_notes
+```
+
+| 评级 | 条件 | 含义 |
+| --- | --- | --- |
+| **SSS+** | `miss_rate == 0` 且 `perfect_rate ≥ 0.95` | Perfect Full Combo! |
+| **SSS** | `miss_rate == 0` 且 `perfect_rate ≥ 0.85` | Excellent Full Combo! |
+| **SS** | `miss_rate == 0` 且 `perfect_rate ≥ 0.70` | Great Full Combo! |
+| **S** | `miss_rate == 0`（其余） | Good Full Combo! |
+| **S+** | `miss_rate ≤ 0.02` | Almost Perfect! |
+| **S** | `miss_rate ≤ 0.05` | Excellent! |
+| **A** | `miss_rate ≤ 0.10` | Great! |
+| **B** | `miss_rate ≤ 0.15` | Good! |
+| **C** | `miss_rate ≤ 0.25` | Fair |
+| **D** | `miss_rate ≤ 0.40` | Needs Practice |
+| **F** | `miss_rate > 0.40` | Keep Trying! |
+| *No Data* | 本局无任何音符 | No notes played |
+
+> 规则要点：**全连击（无 MISS）**时按 PERFECT 率细分（SSS+ / SSS / SS / S）；一旦漏失，仅按漏失率由高到低评级（S+ → F）。结算界面（`Assets/Song_Completed_Menu.png`）会同时展示分数、最大连击、`Perfect/Good/Miss` 计数、准确率与评级。
 
 ---
 
@@ -333,7 +392,7 @@ for note in self.notes:
 
 ```bash
 # 1. 安装系统依赖
-sudo apt update && sudo apt install -y python3 python3-pip libcamera-apps
+sudo apt update && sudo apt install -y python3 python3-pip rpicam-apps
 
 # 2. 安装 Python 依赖
 pip3 install -r requirements.txt
