@@ -272,7 +272,7 @@ MediaPipe Hands 给每根手指标了 4 个关键点（拇指 3 个），由根�
 | 小指 | `20` | `18`（**PIP**） | y | 同上 |
 | 拇指 | `4`（TIP） | `3`（**IP** 指间关节，拇指无 PIP） | x | 见下 |
 
-![Joint_Structure](Assets/Joint_Structure.png)
+![Joint_Structure](Assets/Joint_Structure.png "Image Source: Mediapipe Documentation")
 
 - **PIP（Proximal Interphalangeal Joint，近端指间关节）**：四指的中间关节（点 `6/10/14/18`）。因为手指正常的屈伸发生在 y 方向（图像坐标系 y 轴向下），所以"向上伸"时指尖 y 小于 PIP 的 y，以此判定伸展；弯曲（按下）时指尖 y 大于 PIP 的 y。
 - **拇指特殊**：拇指是侧向开合的，没有 PIP，只有 **IP（Interphalangeal，指间关节，点 `3`）**。因此拇指不用 y、而用 **x 方向**比较指尖 `4` 与 IP `3`：做镜像后，左手 `lm[4].x > lm[3].x`、右手 `lm[4].x < lm[3].x` 表示拇指张开（伸展）。
