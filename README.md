@@ -65,7 +65,9 @@ class CameraManager:
 
 ---
 
-## 📦 环境依赖
+## 🚀 如何运行
+
+### 1. 安装依赖
 
 **系统层**（Ubuntu 24.04 arm64）：
 
@@ -88,6 +90,45 @@ pip3 install -r requirements.txt
 | `numpy` | 坐标计算与数值处理 |
 
 > 程序会设置 `MEDIAPIPE_DISABLE_GPU=1` 与 `TF_CPP_MIN_LOG_LEVEL=3`，强制 MediaPipe 在 **CPU** 上运行并抑制日志，适合树莓派等无独显环境。
+
+### 2. 准备钢琴采样
+
+```bash
+mkdir -p ~/Piano
+cp -r Piano/* ~/Piano/        # 程序默认从 ~/Piano 读取 tone(N).wav
+```
+
+### 3. 运行
+
+**方式 A：树莓派（CSI 摄像头 + rpicam-vid）**
+
+```bash
+# 确保摄像头已连接并在 raspi-config 中启用
+python3 game.py
+```
+
+**方式 B：普通电脑（USB/内置摄像头）**
+
+将 `game.py` 中的 `CameraManager` 改为使用 `cv2.VideoCapture(0)`，并将采样放入 `~/Piano`，其余步骤相同：
+
+```python
+# 替换 CameraManager 的初始化逻辑为：
+self.cap = cv2.VideoCapture(0, cv2.CAP_ANY)
+```
+
+> ⚠️ **未经验证**：方式 B 仅为兼容普通摄像头的参考改法，项目未在非树莓派环境（CSI 摄像头 + rpicam-vid）下实测，手势流水线是否完全可用取决于具体摄像头与驱动，请自行验证。
+
+### 4. 运行中的操作
+
+| 操作 | 手势 / 按键 |
+| --- | --- |
+| 移动菜单光标 | 手掌左右/上下移动 |
+| 确认 / 点击 | 握拳（保持约 3 帧） |
+| 弹奏音符 | 音符到判定线时弯曲对应手指 |
+| 暂停 | `SPACE`（游戏内） |
+| 自动暂停 | 非演示模式下若连续多帧未检测到手，自动暂停并提示 |
+| 退出当前界面 | `ESC` |
+| 退出程序 | `Q` |
 
 ---
 
@@ -481,50 +522,6 @@ perfect_rate = perfect_count / total_notes
 ![Start Menu](Assets/Start_Menu.png)
 ![In Game](Assets/In_Game_Screen.png)
 ![Song Completed](Assets/Song_Completed_Menu.png)
-
----
-
-## 🚀 如何启动
-
-### 方式 A：树莓派（CSI 摄像头 + rpicam-vid）
-
-```bash
-# 1. 安装系统依赖
-sudo apt update && sudo apt install -y python3 python3-pip rpicam-apps
-
-# 2. 安装 Python 依赖
-pip3 install -r requirements.txt
-
-# 3. 准备钢琴采样（项目已附带，软链或复制到 ~/Piano）
-mkdir -p ~/Piano
-cp -r Piano/* ~/Piano/        # 程序默认从 ~/Piano 读取 tone(N).wav
-
-# 4. 运行（确保摄像头已连接并在 raspi-config 中启用）
-python3 game.py
-```
-
-### 方式 B：普通电脑（USB/内置摄像头）
-
-将 `game.py` 中的 `CameraManager` 改为使用 `cv2.VideoCapture(0)`，并将采样放入 `~/Piano`，其余步骤相同：
-
-```python
-# 替换 CameraManager 的初始化逻辑为：
-self.cap = cv2.VideoCapture(0, cv2.CAP_ANY)
-```
-
-> ⚠️ **未经验证**：方式 B 仅为兼容普通摄像头的参考改法，项目未在非树莓派环境（CSI 摄像头 + rpicam-vid）下实测，手势流水线是否完全可用取决于具体摄像头与驱动，请自行验证。
-
-### 运行中的操作
-
-| 操作 | 手势 / 按键 |
-| --- | --- |
-| 移动菜单光标 | 手掌左右/上下移动 |
-| 确认 / 点击 | 握拳（保持约 3 帧） |
-| 弹奏音符 | 音符到判定线时弯曲对应手指 |
-| 暂停 | `SPACE`（游戏内） |
-| 自动暂停 | 非演示模式下若连续多帧未检测到手，自动暂停并提示 |
-| 退出当前界面 | `ESC` |
-| 退出程序 | `Q` |
 
 ---
 
