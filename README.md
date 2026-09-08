@@ -446,16 +446,23 @@ for note in self.notes:
 ![游戏状态流转](Assets/diagrams/game_state_flow.png)
 
 ```
-开始菜单 ──► 选择曲目 ──► 选择难度 ──► 游戏中(下落式钢琴) ──► 结算界面
+开始菜单
+  ├─ Start Game ──► 选择曲目 ──► 选择难度 ──► 游戏中（手动演奏）──┐
+  └─ Auto Demo  ──► 选择曲目 ───────────────► 游戏中（自动演奏）──┤
+                                                                  ▼
+                                                              结算界面
+                                                            ┌─────┴─────┐
+                                                            ▼           ▼
+                                                  重玩（同曲目同难度）  返回主菜单
 ```
 
-- **曲目**：内置 **7 首**——`Twinkle Twinkle Little Star`、`Happy Birthday`、`Jingle Bells`、`Farewell`（送别）、`Ode to Joy`、`Moonlight Sonata`、`Night Piano No.5`，每首以 `(音名, 时值)` 序列定义于 `PianoSheet`。
-- **曲谱节奏**：各曲谱音符时值已重新调校（整体更密、更快），提升节奏密度与游玩爽快感。
-- **难度**：`Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×` 控制音符下落速度与生成节奏（`speed_multiplier`）。
-- **轨道生成**：每个音符随机分配到 1–10 号轨道，再按曲目的 `scale_notes` 把简谱音名映射到真实音高（如 `C4`/`D5`），音符上直接显示音名。
-- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，`AudioManager` 用 64 个混音通道保证长音不被截断。
+- **曲目**：内置 **7 首**——`Twinkle Twinkle Little Star`、`Happy Birthday`、`Jingle Bells`、`Farewell`（送别）、`Ode to Joy`、`Moonlight Sonata`、`Night Piano No.5`。每首在 `PianoSheet.get_song()` 中以 `(简谱数字, 时值)` 序列定义，另配 `scale_notes` 表把简谱翻译成真实音名（如 `'1''→C5`、`'b3'→Eb4`）。
+- **音符生成**：按曲谱顺序逐个生成，间隔由该音符时值决定——`spawn_delay = max(1, int(20 × duration / 0.2))` 帧，同屏音符上限 30 个；**演示模式**改为固定每 6 帧生成一个，节奏明显更快。
+- **难度**：`Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×`，**只影响音符下落速度**（`speed = 5.5 × (屏高/720) × speed_multiplier`），不改变生成间隔；演示模式固定按 `0.8×` 演奏，跳过难度选择。
+- **轨道分配**：每个音符随机落到 1–10 号轨道（`random.randint(1, 10)`），与它弹什么音无关；轨道底部标签固定为 `C4…E5`，而音符上显示的是它自己的真实音名（`actual_note`，如 `C#5`）。全部音符下落完且屏幕清空后，等待一小段缓冲才判定曲目结束并进入结算。
+- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，`AudioManager` 用 64 个混音通道保证长音不被截断；暂停或重开时 `stop_all()` 清空所有通道。
 - **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/great/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
-- **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。
+- **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。结算界面可"重玩"（沿用当前曲目与难度）或"返回主菜单"。
 
 ---
 
@@ -607,10 +614,10 @@ piano_game/
 | Twinkle Twinkle | C | `1→C4, 2→D4 … 7→B4` | C 大调，中音区 |
 | Happy Birthday | C | `5→G4 … 1'→C5 … 4'→F5` | 含高八度 |
 | Jingle Bells | C | `1→C4 … 5→G4` | C 大调五音 |
-| Farewell（送别） | C | `7̣→B3 … 1→C4 … 4'→F5` | 跨两个八度 |
-| Ode to Joy | C | `1→C4 … 7'→B5, 1''→C6` | 跨三个八度 |
+| Farewell（送别） | C | `7̣→B3 … 1→C4 … 4'→F5` | 含低音 B3，音域 B3–F5 |
+| Ode to Joy | C | `1→C4 … 7'→B5, 1''→C6` | 音域 C4–C6 |
 | Moonlight Sonata | C#m | `3→E4, 5→G#4 … 3'→E5` | 升号调（含 G#/D#） |
-| Night Piano No.5 | C | `1→C4 … b3'→Eb5 … b7''→Bb6` | 含降号（Eb/Bb），跨四个八度 |
+| Night Piano No.5 | C | `1→C4 … b3'→Eb5 … b7''→Bb6` | 含降号（Eb/Bb），音域 C4–Bb6 |
 
 游戏循环按 `notes` 列表（每个元素为 `(简谱数字, 时值)`）依次下落音符；当玩家命中时，先用 `parse_note_name_simple()` 把简谱数字解析为 `(音名, 八度)`，再经 `get_sample_file_for_note()` 映射到 `tone(n).wav` 并播放，从而实现「简谱 → 真实钢琴采样」的闭环。
 
