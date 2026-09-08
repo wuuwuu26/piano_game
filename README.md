@@ -70,11 +70,7 @@ class CameraManager:
 
 ## 🚀 如何运行
 
-![运行步骤速查](Assets/diagrams/quick_run_guide.png)
-
 ### 1. 安装依赖
-
-![系统依赖安装流程](Assets/diagrams/install_dependencies.png)
 
 **系统层**（Ubuntu 24.04 arm64）：
 
@@ -99,8 +95,6 @@ pip3 install -r requirements.txt
 > 程序会设置 `MEDIAPIPE_DISABLE_GPU=1` 与 `TF_CPP_MIN_LOG_LEVEL=3`，强制 MediaPipe 在 **CPU** 上运行并抑制日志，适合树莓派等无独显环境。
 
 ### 2. 准备钢琴采样
-
-![钢琴采样部署步骤](Assets/diagrams/piano_samples_deploy.png)
 
 ```bash
 mkdir -p ~/Piano
@@ -573,9 +567,6 @@ piano_game/
 │       ├── gesture_pipeline.png        # 手势识别数据处理流水线
 │       ├── game_state_flow.png         # 游戏状态流转图
 │       ├── rating_decision_tree.png    # 判定评级分支决策树
-│       ├── quick_run_guide.png         # 运行步骤速查
-│       ├── install_dependencies.png    # 系统依赖安装流程
-│       ├── piano_samples_deploy.png    # 钢琴采样部署步骤
 │       └── project_structure.png       # 项目目录结构
 ├── requirements.txt
 ├── .gitignore
