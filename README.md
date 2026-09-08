@@ -478,6 +478,8 @@ for note in self.notes:
                                         → 扬声器
 ```
 
+![音频播放管线](Assets/diagrams/audio_pipeline.png)
+
 ### 1. 音频引擎初始化（game.py:35）
 
 `pygame.mixer.init(frequency=44100, size=-16, channels=1, buffer=1024)`：采样率 44.1kHz、16 位有符号、**单声道**（采样本身单声道，省内存省解码）；缓冲区 1024 帧。`pygame.mixer.set_num_channels(64)` 开 **64 个并发混音通道**，支持同一瞬间最多 64 个音叠加而不互相打断（轮指、和弦、连击时关键）。
@@ -627,6 +629,7 @@ piano_game/
 │       ├── gesture_pipeline.png        # 手势识别数据处理流水线
 │       ├── game_state_flow.png         # 游戏状态流转图
 │       ├── game_state_flow_transparent.png  # 同图透明背景版（抠图）
+│       ├── audio_pipeline.png            # 音频播放管线图解（采样→通道→扬声器）
 │       ├── rating_decision_tree.png    # 判定评级分支决策树
 │       └── project_structure.png       # 项目目录结构
 ├── requirements.txt
