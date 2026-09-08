@@ -464,6 +464,59 @@ for note in self.notes:
 - **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/great/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
 - **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。结算界面可「重玩」或「返回主菜单」：**手动演奏**结算后的「重玩」沿用当前曲目与难度回到手动演奏；**自动演示**结算后的「重玩」回到自动演奏（跳过难度选择）；两者均可「返回主菜单」。
 
+## 🔊 音频播放实现（核心）
+
+游戏里每一个钢琴音都来自 88 键真实采样，按「判定命中 → 取采样 → 解码缓存 → 算音量 → 通道播放」的链路实时合成，声音与画面命中特效同源同步触发。完整管线：
+
+```
+音符进入判定区（手动 PERFECT/GREAT/GOOD 或 Demo AUTO）
+   → get_note_sound(actual_note, duration)
+        → get_sample_file_for_note() : 音名 → tone(idx+1).wav
+        → load_piano_sample()        : pygame.mixer.Sound 解码 + SAMPLE_SOUND_CACHE 缓存
+        → 计算 final_volume（力度 / 时值 / 高音补偿）
+        → AudioManager.play_sound()  : 找空闲通道 → channel.play()
+                                        → 扬声器
+```
+
+### 1. 音频引擎初始化（game.py:35）
+
+`pygame.mixer.init(frequency=44100, size=-16, channels=1, buffer=1024)`：采样率 44.1kHz、16 位有符号、**单声道**（采样本身单声道，省内存省解码）；缓冲区 1024 帧。`pygame.mixer.set_num_channels(64)` 开 **64 个并发混音通道**，支持同一瞬间最多 64 个音叠加而不互相打断（轮指、和弦、连击时关键）。
+
+### 2. 采样库与音名映射（game.py:83）
+
+`SAMPLES_DIR = ~/Piano`，88 个文件 `tone(1).wav … tone(88).wav` 对应 **A0（最低）到 C8（最高）**。`NOTE_NAMES_88` 列表 + `NOTE_INDEX_LOOKUP` 字典把音名映射到索引 `0–87`，并内置 `Db→C#`、`Eb→D#` 等降号别名；`NOTE_TO_MIDI` / `MIDI_TO_NOTE` 完成音名 ↔ MIDI 编号（A0=21 … C8=108）互转。
+
+### 3. 音名 → 具体文件（game.py:221，`get_sample_file_for_note`）
+
+`NOTE_INDEX_LOOKUP[note]` 取索引；直接查不到时用 `parse_note_name_simple()` 解析（支持简谱 `1' 2'`、升/降号）。文件名 `tone (index + 1).wav`——列表从 0 起、文件从 1 起，故 `+1`；用 `os.path.exists` 确认存在才返回。
+
+### 4. 解码 + 缓存（game.py:297，`load_piano_sample`）
+
+`pygame.mixer.Sound(filepath)` 把 WAV 解码成可播放对象（仅进内存、**不播放**），存入 `SAMPLE_SOUND_CACHE`，键为 `音名_力度`，**上限 500 条**，超限清掉最早一半（LRU 思路），避免内存被撑爆。找不到对应采样时依次回退：同音名其它八度 → `C4` → 第一个采样，保证永远有声音可出。
+
+### 5. 音量计算（game.py:343，`get_note_sound`）
+
+- `sample_velocity = clamp(int(velocity * 16), 1, 16)`：力度分层，对应预加载时的不同力度层采样；
+- `volume_factor = 0.7 + 0.3 * min(1.0, duration / 0.3)`：时值越长越响；
+- 高音补偿：`C5+` ×1.15、`C6+` ×1.30；
+- `final_volume = min(1.0, 0.8 * volume_factor)`，`sound.set_volume()` 只影响**本次播放**，不污染缓存里的原始采样。
+
+### 6. 通道分配与播放（game.py:145，`AudioManager`）
+
+`play_sound()` 加线程锁后：先清掉已播完的通道（`_cleanup_stopped_channels`），再遍历 64 通道找一个 `get_busy() == False` 的空闲通道；全忙则 `stop()` 最老的音腾位置（最新音优先）。`channel.play(sound)` **真正开始出声**，并把 `(音名, 起始时间, sound, 通道)` 登记到 `playing_notes` 以便追踪/抢占。`stop_all()` 在切歌 / 暂停 / 退出 / 重开时停掉所有通道，清掉残留尾音。
+
+### 7. 触发时机（game.py:2691）
+
+音符中心进入判定区且被命中时发声：
+
+- **Demo（自动演示）**：进判定区即 `get_note_sound()` 并记 PERFECT；
+- **手动模式**：对应轨道有手指且命中冷却为 0，按距离判 PERFECT / GREAT / GOOD，**每一档各调一次 `get_note_sound`**；
+- **MISS**：不发声，仅记失误、断连击。
+
+### 8. 预加载（game.py:1030，`preload_all_samples`）
+
+启动 Loading 期间把全部 88 采样 + 多个力度层（vel 4/8/12/16）解码进缓存，使正式演奏基本命中缓存、直接播放，**不会因临时解码 WAV 而卡帧**。
+
 ---
 
 ## 🏆 计分与评级
