@@ -630,6 +630,7 @@ piano_game/
 │       ├── game_state_flow.png         # 游戏状态流转图
 │       ├── game_state_flow_transparent.png  # 同图透明背景版（抠图）
 │       ├── audio_pipeline.png            # 音频播放管线图解（采样→通道→扬声器）
+│       ├── audio_pipeline_transparent.png  # 同图透明背景版（抠图）
 │       ├── rating_decision_tree.png    # 判定评级分支决策树
 │       └── project_structure.png       # 项目目录结构
 ├── requirements.txt
