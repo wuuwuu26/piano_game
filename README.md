@@ -451,9 +451,9 @@ for note in self.notes:
   └─ Auto Demo  ──► 选择曲目 ───────────────► 游戏中（自动演奏）──┤
                                                                   ▼
                                                               结算界面
-                                                            ┌─────┴─────┐
-                                                            ▼           ▼
-                                                  重玩（同曲目同难度）  返回主菜单
+                       ┌──────────────────┬──────────────────┐
+                       ▼                  ▼                  ▼
+              重玩·手动 → 手动演奏   重玩·Demo → 自动演奏   返回主菜单 → 开始菜单
 ```
 
 - **曲目**：内置 **7 首**——`Twinkle Twinkle Little Star`、`Happy Birthday`、`Jingle Bells`、`Farewell`（送别）、`Ode to Joy`、`Moonlight Sonata`、`Night Piano No.5`。每首在 `PianoSheet.get_song()` 中以 `(简谱数字, 时值)` 序列定义，另配 `scale_notes` 表把简谱翻译成真实音名（如 `'1''→C5`、`'b3'→Eb4`）。
@@ -462,7 +462,7 @@ for note in self.notes:
 - **轨道分配**：每个音符随机落到 1–10 号轨道（`random.randint(1, 10)`），与它弹什么音无关；轨道底部标签固定为 `C4…E5`，而音符上显示的是它自己的真实音名（`actual_note`，如 `C#5`）。全部音符下落完且屏幕清空后，等待一小段缓冲才判定曲目结束并进入结算。
 - **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，`AudioManager` 用 64 个混音通道保证长音不被截断；暂停或重开时 `stop_all()` 清空所有通道。
 - **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/great/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
-- **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。结算界面可"重玩"（沿用当前曲目与难度）或"返回主菜单"。
+- **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。结算界面可「重玩」或「返回主菜单」：**手动演奏**结算后的「重玩」沿用当前曲目与难度回到手动演奏；**自动演示**结算后的「重玩」回到自动演奏（跳过难度选择）；两者均可「返回主菜单」。
 
 ---
 
@@ -539,8 +539,8 @@ perfect_rate = perfect_count / total_notes
 | 游戏中 | `Assets/In_Game_Screen.png` | 下落音符（带音名）+ 轨道高亮 + 侧边栏统计 |
 | 暂停菜单 | `Assets/Pause_Menu.png` | 暂停时叠加的菜单 |
 | 演示模式 | `Assets/Demo.png` | 无手势自动演奏展示（侧边栏显示 DEMO MODE） |
-| 结算界面 | `Assets/Song_Completed_Menu.png` | 分数、四项计数、最大连击、准确率与评级 |
-| 演示结算 | `Assets/Demo_Completed_Menu.png` | 演示结束的独立界面（Play Again / Back to Menu） |
+| 结算界面 | `Assets/Song_Completed_Menu.png` | 分数、四项计数、最大连击、准确率与评级；「重玩」回到手动演奏（同曲目同难度） |
+| 演示结算 | `Assets/Demo_Completed_Menu.png` | 演示结束的独立界面；「重玩」回到自动演奏 / 「Back to Menu」返回主菜单 |
 
 ![Select Song](Assets/Select_Song_Menu.png)
 ![Select Difficulty](Assets/Select_Difficulty_Menu.png)
@@ -573,6 +573,7 @@ piano_game/
 │   └── diagrams/           # 技术文档流程图
 │       ├── gesture_pipeline.png        # 手势识别数据处理流水线
 │       ├── game_state_flow.png         # 游戏状态流转图
+│       ├── game_state_flow_transparent.png  # 同图透明背景版（抠图）
 │       ├── rating_decision_tree.png    # 判定评级分支决策树
 │       └── project_structure.png       # 项目目录结构
 ├── requirements.txt
