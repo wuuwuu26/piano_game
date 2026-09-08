@@ -556,22 +556,7 @@ def draw_rounded_rect_alpha(surface, color_alpha, rect, radius, border_width=0, 
 # 📥 背景图片管理
 # ============================================
 
-BG_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bg_cache')
-
-def ensure_cache_dir():
-    if not os.path.exists(BG_CACHE_DIR):
-        os.makedirs(BG_CACHE_DIR)
-
-def download_image(url):
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            image_data = response.read()
-            image = pygame.image.load(BytesIO(image_data))
-            return image, image_data
-    except Exception as e:
-        print(f"下载图片失败: {e}")
-        return None, None
+# 背景图统一从仓库 Assets/background.jpg 读取，运行时不再联网下载（见 load_bg_images）
 
 BG_GRADIENT_CACHE = {}
 
@@ -592,44 +577,21 @@ def create_fallback_bg(width, height, color1, color2):
     return bg.copy()
 
 def load_bg_images():
-    ensure_cache_dir()
-    
-    # 使用钢琴背景图片
-    piano_bg_url = 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=1920&q=80'
-    
+    """加载仓库内的背景图 Assets/background.jpg，所有界面共用同一张；缺失则用渐变兜底。"""
+    bg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Assets', 'background.jpg')
     bg_images = {}
-    
-    # 所有界面使用同一张缓存图片
-    # 优先从缓存加载 song.jpg
-    cached_path = os.path.join(BG_CACHE_DIR, 'song.jpg')
-    
+    img = None
+    if os.path.exists(bg_path):
+        try:
+            img = pygame.image.load(bg_path)
+        except Exception as e:
+            print(f"加载背景图失败，使用渐变兜底: {e}")
+            img = None
+    if img is None:
+        # 备用：暖色渐变背景（钢琴主题），无需任何外部文件
+        img = create_fallback_bg(SCREEN_WIDTH, SCREEN_HEIGHT, (40, 25, 20), (80, 50, 35))
     for key in ['main', 'song', 'pause', 'result']:
-        # 尝试加载缓存的图片
-        img = None
-        if os.path.exists(cached_path):
-            try:
-                img = pygame.image.load(cached_path)
-                if img.get_width() > 0:
-                    bg_images[key] = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-                    continue
-            except:
-                pass
-        
-        # 如果缓存不存在或损坏，下载
-        img, image_data = download_image(piano_bg_url)
-        
-        if img and image_data:
-            try:
-                with open(cached_path, 'wb') as f:
-                    f.write(image_data)
-            except:
-                pass
-            
-            bg_images[key] = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        else:
-            # 使用暖色渐变背景（钢琴主题）
-            bg_images[key] = create_fallback_bg(SCREEN_WIDTH, SCREEN_HEIGHT, (40, 25, 20), (80, 50, 35))
-    
+        bg_images[key] = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
     return bg_images
 
 print("🖼️ 加载背景图片...")

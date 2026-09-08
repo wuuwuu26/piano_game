@@ -624,6 +624,7 @@ piano_game/
 │   ├── Demo.png
 │   ├── Demo_Completed_Menu.png
 │   ├── Song_Completed_Menu.png
+│   ├── background.jpg             # 游戏背景图（仓库内，不联网加载）
 │   ├── Joint_Structure.png
 │   └── diagrams/           # 技术文档流程图
 │       ├── gesture_pipeline.png        # 手势识别数据处理流水线
@@ -644,11 +645,10 @@ piano_game/
 
 程序用「**缓存 + 启动预载 + 资源池**」三类手段做性能优化，核心目标只有一个：**让演奏热路径（每帧）只做 O(1) 查找与轻量计算**，把昂贵的读盘、解码、重绘都前置到启动阶段或复用缓存，从而保证稳定帧率与音画同步。
 
-### 1. 磁盘缓存：背景图（`bg_cache/`）
+### 1. 背景图（仓库内 `Assets/background.jpg`，不联网）
 
-- 位于仓库根目录，运行时自动创建；已在 `.gitignore` 中忽略，不进 Git 仓库。
-- 首次启动从 Unsplash 下载 4 张背景图（主菜单 / 选曲 / 暂停 / 结算），按 1920×1200 原始尺寸保存为 `main.jpg`、`song.jpg`、`pause.jpg`、`result.jpg`。
-- 之后启动直接读本地文件，**不再联网**；下载失败则用渐变色降级背景。
+- 背景图 `Assets/background.jpg`（1920×1280）**已提交进仓库**，**所有界面共用同一张**；运行时直接读取，不再联网下载，也不再生成 `bg_cache/` 缓存目录。
+- 若该文件缺失，自动回退到暖色渐变背景（`create_fallback_bg`，见 `load_bg_images`），保证任何环境都能启动。
 
 ### 2. 运行时内存缓存（不落盘，进程退出即清空）
 
@@ -684,7 +684,7 @@ get_note_sound(音名, 力度)
 - **命名管道摄像头流**：树莓派上用 `rpicam-vid` 命名管道常驻流式读取帧（见「摄像头数据流」节），避免每次重新打开摄像头设备。
 - **命中冷却（hit_cooldown = 3 帧）**：命中判定处（game.py:2706 等）对同一音符做去抖，避免被重复判定触发、从而重复解码/发声。
 
-> 钢琴采样 **不** 缓存在仓库内，始终从 `~/Piano`（用户主目录下 `Piano/`）实时读取，并通过 `SAMPLE_SOUND_CACHE` 在内存中复用；`bg_cache/` 被 `.gitignore` 忽略。
+> 钢琴采样 **不** 缓存在仓库内，始终从 `~/Piano`（用户主目录下 `Piano/`）实时读取，并通过 `SAMPLE_SOUND_CACHE` 在内存中复用。
 
 ---
 
