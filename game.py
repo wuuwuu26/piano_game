@@ -556,7 +556,7 @@ def draw_rounded_rect_alpha(surface, color_alpha, rect, radius, border_width=0, 
 # 📥 背景图片管理
 # ============================================
 
-# 背景图统一从仓库 Assets/background.jpg 读取，运行时不再联网下载（见 load_bg_images）
+# 背景图统一从仓库 Assets/song.jpg 读取，运行时不再联网下载（见 load_bg_images）
 
 BG_GRADIENT_CACHE = {}
 
@@ -577,8 +577,8 @@ def create_fallback_bg(width, height, color1, color2):
     return bg.copy()
 
 def load_bg_images():
-    """加载仓库内的背景图 Assets/background.jpg，所有界面共用同一张；缺失则用渐变兜底。"""
-    bg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Assets', 'background.jpg')
+    """加载仓库内的背景图 Assets/song.jpg，所有界面共用同一张；缺失则用渐变兜底。"""
+    bg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Assets', 'song.jpg')
     bg_images = {}
     img = None
     if os.path.exists(bg_path):
