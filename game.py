@@ -3539,7 +3539,7 @@ def main():
                         if not song_id:
                             song_id = 'twinkle'
                         game.load_song(song_id, game.speed_multiplier)
-                        game.start(is_demo=False)
+                        game.start(is_demo=game.is_demo)
                         cursor.set_visible(False)
                     elif result["action"] == "menu":
                         cursor.consume_click()
