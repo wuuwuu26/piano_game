@@ -632,6 +632,7 @@ piano_game/
 │       ├── game_state_flow_transparent.png  # 同图透明背景版（抠图）
 │       ├── audio_pipeline.png            # 音频播放管线图解（采样→通道→扬声器）
 │       ├── audio_pipeline_transparent.png  # 同图透明背景版（抠图）
+│       ├── cache_perf_transparent.png    # 缓存与性能优化流程图（大字、抠图、立体感）
 │       ├── rating_decision_tree.png    # 判定评级分支决策树
 │       └── project_structure.png       # 项目目录结构
 ├── requirements.txt
@@ -644,6 +645,8 @@ piano_game/
 ## 💾 缓存与性能优化
 
 程序用「**缓存 + 启动预载 + 资源池**」三类手段做性能优化，核心目标只有一个：**让演奏热路径（每帧）只做 O(1) 查找与轻量计算**，把昂贵的读盘、解码、重绘都前置到启动阶段或复用缓存，从而保证稳定帧率与音画同步。
+
+![缓存与性能优化](Assets/diagrams/cache_perf_transparent.png)
 
 ### 1. 背景图（仓库内 `Assets/background.jpg`，不联网）
 
