@@ -4,6 +4,8 @@
 
 > 使用 88 键真实钢琴采样（`Piano/` 目录）进行声音合成，并支持升/降号映射。
 
+![Start Menu](Assets/Start_Menu.png)
+
 ---
 
 ## ✨ 特性
@@ -11,12 +13,13 @@
 - 🖐️ **纯视觉手势操控**：双手 10 指分别对应 10 条轨道，零接触游玩。
 - 🎯 **三种手势语义**：光标移动（手部中心）、菜单点击（握拳）、音符命中（手指弯曲 / 点击）。
 - 🎵 **真实钢琴音色**：88 个 `tone(N).wav` 单声道采样，按音名动态加载与音高映射。
-- 📈 **节奏判定**：PERFECT / GREAT / GOOD / MISS 四级评分，含连击（combo）与准确率统计。
+- 📝 **音符自带音名**：每个下落音符上直接标注真实音名（如 `C#5`、`G#4`），升降号音也能正确显示与发声。
+- 📈 **四级节奏判定**：PERFECT / GREAT / GOOD / MISS 独立计数，含连击（combo）与准确率统计。
 - 🎚️ **三档难度**：Easy / Normal / Hard 对应不同音符下落速度。
-- 🖥️ **全屏 + 摄像头**：全屏游戏、侧边栏右下角为实时摄像头预览。
-- 🤖 **演示模式**：无手势时自动演奏，便于展示与调试。
-- 🎬 **流畅的 UI 过渡动画**：菜单按钮、标题与结算文字进入时带快速淡入（alpha 渐变），标题叠加动态发光纹理，交互反馈更顺滑自然。
-- 🎨 **圆角与发光底层优化**：圆角矩形支持带 Alpha 通道，配合多层发光缓存，让界面层次与高光更柔和。
+- 🎬 **七首内置曲谱**：小星星、生日歌、铃儿响叮当、送别、欢乐颂、月光奏鸣曲、夜钢琴曲 5 号。
+- 🖥️ **全屏 + 摄像头**：全屏游戏、侧边栏右下角为实时摄像头预览（含手部骨架叠加）。
+- 🤖 **演示模式**：无手势时自动演奏，演示结束有独立的 "Demo Complete!" 结算界面。
+- 🎨 **流畅 UI 动效**：菜单按钮快速淡入、标题发光纹理、音符发光脉冲与轨迹光效。
 
 ---
 
@@ -36,9 +39,9 @@
 
 游戏**不**直接调用 `cv2.VideoCapture(0)`，而是由 `CameraManager` 启动 `rpicam-vid` 把 MJPEG 流写入一个命名管道 `/tmp/camera_pipe`，再由 OpenCV 以 `CAP_FFMPEG` 读取。这样可绕开树莓派上 `libcamera` 与 OpenCV 直接采集的兼容问题：
 
-```651:690:game.py
+```python
 class CameraManager:
-    def __init__(self, fps=90):
+    def __init__(self, fps=60):
         ...
         self.pipe_path = '/tmp/camera_pipe'
         ...
@@ -55,7 +58,7 @@ class CameraManager:
         ]
 ```
 
-**摄像头采集规格**：`rpicam-vid` 以 **320×240** 分辨率、**最高 90 FPS**（MJPEG）采集，写入命名管道；OpenCV 以 `CAP_FFMPEG` 读取后，镜像并直接以 **320×240** 的预览窗口绘制到界面右下角（与采集分辨率一致，不再额外缩放）。实际可达帧率取决于 Pi 5 的负载（手势推理 + 渲染），程序会在预览窗口角落实时显示当前 `camera_fps`。
+**摄像头采集规格**：`rpicam-vid` 以 **320×240** 分辨率、默认 **60 FPS**（MJPEG）采集，写入命名管道；OpenCV 以 `CAP_FFMPEG` 读取后镜像，再缩放为 **280×210** 的预览窗口绘制到界面右下角。实际可达帧率取决于 Pi 5 的负载（手势推理 + 渲染），程序会在预览窗口角落实时显示当前 `camera_fps`。
 
 > 若使用普通 USB/内置摄像头，可将 `CameraManager` 改为 `cv2.VideoCapture(0)`（并删除 `rpicam-vid` 相关逻辑），其余手势流水线完全复用。
 
@@ -67,7 +70,11 @@ class CameraManager:
 
 ## 🚀 如何运行
 
+![运行步骤速查](Assets/diagrams/quick_run_guide.png)
+
 ### 1. 安装依赖
+
+![系统依赖安装流程](Assets/diagrams/install_dependencies.png)
 
 **系统层**（Ubuntu 24.04 arm64）：
 
@@ -92,6 +99,8 @@ pip3 install -r requirements.txt
 > 程序会设置 `MEDIAPIPE_DISABLE_GPU=1` 与 `TF_CPP_MIN_LOG_LEVEL=3`，强制 MediaPipe 在 **CPU** 上运行并抑制日志，适合树莓派等无独显环境。
 
 ### 2. 准备钢琴采样
+
+![钢琴采样部署步骤](Assets/diagrams/piano_samples_deploy.png)
 
 ```bash
 mkdir -p ~/Piano
@@ -134,7 +143,11 @@ self.cap = cv2.VideoCapture(0, cv2.CAP_ANY)
 
 ## 🤚 手势识别实现（核心）
 
-这是本项目的重点。整套识别链路可概括为：
+这是本项目的重点。整套识别链路如下图所示：
+
+![视觉手势识别数据处理流水线](Assets/diagrams/gesture_pipeline.png)
+
+概括为：
 
 ```
 摄像头帧 ──► [镜像 flip] ──► [BGR→RGB]
@@ -148,7 +161,7 @@ self.cap = cv2.VideoCapture(0, cv2.CAP_ANY)
 
 初始化一个可检测**双手**的轻量模型（`model_complexity=0` 保证树莓派上的实时性）：
 
-```784:790:game.py
+```python
 hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=2,
@@ -160,7 +173,7 @@ hands = mp_hands.Hands(
 
 在游戏主循环中，每帧把镜像后的 RGB 帧送入模型，得到每只手的 21 个归一化关键点 `hand_landmarks` 与左右手标签 `handedness`：
 
-```2963:2976:game.py
+```python
 if frame is not None and camera_available:
     frame = cv2.flip(frame, 1)
     camera_fps = camera.get_fps()
@@ -189,7 +202,7 @@ if frame is not None and camera_available:
 
 取手掌区域的 5 个参考点（手腕 + 四个 MCP）求平均，作为"手部中心"：
 
-```831:835:game.py
+```python
 def get_hand_center(hand_landmarks):
     lm = hand_landmarks.landmark
     x = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5
@@ -197,9 +210,9 @@ def get_hand_center(hand_landmarks):
     return x, y
 ```
 
-将中心相对屏幕中心的偏移量归一化到 `[-1,1]`，再乘以灵敏度系数 `MOUSE_SCALE=5.0` 映射到全屏坐标，并做**指数平滑**（每帧 `mouse = mouse*0.8 + target*0.2`）消除抖动：
+将中心相对屏幕中心的偏移量归一化到 `[-1,1]`，再乘以灵敏度系数 `MOUSE_SCALE=5.0` 映射到全屏坐标，并做**指数平滑**（平滑系数 0.55，兼顾跟手速度与抗抖动）：
 
-```2979:2999:game.py
+```python
 if idx == 0:
     hx, hy = get_hand_center(hand_landmarks)
     center_x = 0.5; center_y = 0.5
@@ -209,8 +222,8 @@ if idx == 0:
     screen_y = SCREEN_HEIGHT // 2 + offset_y * SCREEN_HEIGHT * MOUSE_SCALE / 2
     screen_x = max(margin, min(SCREEN_WIDTH - margin, screen_x))
     screen_y = max(margin, min(SCREEN_HEIGHT - margin, screen_y))
-    mouse_x = mouse_x * (1 - 0.2) + screen_x * 0.2   # 低通平滑
-    mouse_y = mouse_y * (1 - 0.2) + screen_y * 0.2
+    mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55   # 低通平滑
+    mouse_y = mouse_y * (1 - 0.55) + screen_y * 0.55
 ```
 
 > `MOUSE_SCALE=5.0` 意味着手掌只需在画面内移动约 **1/5** 范围即可横扫整屏，适合站立远距离游玩；可按手感下调。
@@ -219,12 +232,12 @@ if idx == 0:
 
 主循环用 `enumerate(...)` 遍历检测到的双手，但**只有索引 `idx == 0` 的那只手**参与光标映射与握拳判定：
 
-```2979:3007:game.py
+```python
 if idx == 0:
     hx, hy = get_hand_center(hand_landmarks)
     ...
-    mouse_x = mouse_x * (1 - 0.2) + screen_x * 0.2   # 低通平滑
-    mouse_y = mouse_y * (1 - 0.2) + screen_y * 0.2
+    mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55   # 低通平滑
+    mouse_y = mouse_y * (1 - 0.55) + screen_y * 0.55
 
     if is_fist(finger_states, is_left):
         fist_timer += 1
@@ -285,7 +298,7 @@ if idx == 0:
 
 `get_finger_states` 用几何阈值给出每根手指是否"伸展"（布尔值）。由于做了镜像，判定时需注意左右手的 x 方向符号相反：
 
-```801:823:game.py
+```python
 def get_finger_states(hand_landmarks, is_left_hand):
     lm = hand_landmarks.landmark
     ...
@@ -330,7 +343,7 @@ MediaPipe Hands 给每根手指标了 4 个关键点（拇指 3 个），由根�
 
 当一只手中**伸展的手指数 ≤ 1** 时判定为"握拳"，用作点击：
 
-```837:843:game.py
+```python
 def is_fist(finger_states, is_left):
     if is_left:
         fingers = ['left_thumb', 'left_index', 'left_middle', 'left_ring', 'left_pinky']
@@ -342,7 +355,7 @@ def is_fist(finger_states, is_left):
 
 为避免单帧抖动导致误触，主循环对握拳做了**迟滞（hysteresis）**：连续 ≥ `FIST_THRESHOLD=3` 帧都判定为握拳才置位 `is_fisting`，一旦张开立即清零：
 
-```3001:3007:game.py
+```python
 if is_fist(finger_states, is_left):
     fist_timer += 1
     if fist_timer >= FIST_THRESHOLD:
@@ -358,7 +371,7 @@ else:
 
 游戏有 **10 条轨道**，每条轨道固定对应一根手指（左右手各 5 指）。映射表如下（左侧 1–5、右侧 6–10）：
 
-```792:797:game.py
+```python
 FINGER_MAP = {
     'left_pinky': 1, 'left_ring': 2, 'left_middle': 3,
     'left_index': 4, 'left_thumb': 5,
@@ -369,7 +382,7 @@ FINGER_MAP = {
 
 "弹奏"动作被建模为**手指由伸展变为弯曲的跳变**（一次"点击"）。每帧对比当前与上一帧的伸展状态，凡是"上一帧伸、这一帧弯"的手指即视为被按下，转换为对应的轨道编号：
 
-```2315:2329:game.py
+```python
 pressed_fingers = []
 if finger_states is not None:
     for finger_name, is_extended in finger_states.items():
@@ -390,39 +403,45 @@ active_fingers = pressed_numbers
 
 ### 7. 命中判定与评级
 
-音符持续下落，当它的底边进入判定带 `[hit_line, hit_line + hit_zone_height]` 且对应轨道手指被按下时，按音符中心与判定带中心的偏差评级：
+音符持续下落，当它的**中心**进入判定带 `[hit_line - 35, hit_line + 35]` 且对应轨道手指被按下时，按音符中心与判定线中心的偏差评级：
 
-```2365:2393:game.py
+```python
+hit_zone_top = self.hit_line - self.hit_zone_height
+hit_zone_bottom = self.hit_line + self.hit_zone_height
+hit_center = self.hit_line
+
+zone_height = self.hit_zone_height * 2
+PERFECT_THRESHOLD = zone_height * 0.15
+GREAT_THRESHOLD = zone_height * 0.35
+GOOD_THRESHOLD = zone_height * 0.60
+
 for note in self.notes:
     note.update()
     if not note.hit and not note.miss:
-        note_bottom = note.y + note.height
-        if hit_zone_top <= note_bottom <= hit_zone_bottom:
-            if self.is_demo or note.lane in active_fingers:
-                center_y = note.y + note.height / 2
-                distance = abs(center_y - hit_center)
-                if self.is_demo:
-                    ...   # 演示模式自动 PERFECT
-                elif distance < PERFECT_THRESHOLD:   # 10px
-                    self.score += 100 + self.combo * 5
-                    ...   # PERFECT!
-                elif distance < GREAT_THRESHOLD:     # 22px
-                    self.score += 70 + self.combo * 3
-                    ...   # GREAT!
-                elif distance < GOOD_THRESHOLD:      # 35px
-                    self.score += 50 + self.combo * 2
-                    ...   # GOOD
+        note_center_y = note.y + note.height / 2
+        in_zone = hit_zone_top <= note_center_y <= hit_zone_bottom
+        if in_zone and note.lane in active_fingers and self.hit_cooldown == 0:
+            distance = abs(note_center_y - hit_center)
+            if distance < PERFECT_THRESHOLD:     # 10.5px
+                self.score += 100 + self.combo * 5
+                ...   # PERFECT!
+            elif distance < GREAT_THRESHOLD:     # 24.5px
+                self.score += 80 + self.combo * 4
+                ...   # GREAT!
+            elif distance < GOOD_THRESHOLD:      # 42px
+                self.score += 50 + self.combo * 2
+                ...   # GOOD
 ```
 
-阈值：`PERFECT < 10px`、`GREAT < 22px`、`GOOD < 35px`；音符越过屏幕底部仍未命中则计 `MISS` 并清空连击。判定线位置 `hit_line = height - 90`、判定带高度 `hit_zone_height = 35`。
+判定带高度 `hit_zone_height = 35`（判定线 `hit_line = height - 90` 上下各 35px，共 70px），三级阈值按判定带高度的比例划分：**PERFECT < 15%（10.5px）、GREAT < 35%（24.5px）、GOOD < 60%（42px）**。两次成功命中之间还有 **3 帧冷却**（`hit_cooldown`），防止一次手指抖动吞掉相邻音符。音符越过判定带底部 20px 仍未命中则计 `MISS` 并清空连击。
 
 ### 8. 鲁棒性处理小结
 
 - **CPU 推理**：`MEDIAPIPE_DISABLE_GPU=1`，适配无 GPU 设备。
-- **指数平滑**：光标坐标低通滤波，抑制关键点抖动。
-- **冷却**：点击后 8 帧冷却，杜绝误触。
+- **指数平滑**：光标坐标低通滤波（系数 0.55），抑制关键点抖动。
+- **冷却**：点击后 8 帧冷却 + 命中后 3 帧冷却，杜绝误触。
 - **缺手暂停**：非演示模式下若连续多帧未检测到手，自动暂停并提示，避免"幽灵操作"。
-- **光标防抖**：`Cursor` 引入 1px 死区（仅当移动超过死区才更新目标坐标），并将平滑系数由 0.15 提高到 0.55，既加快光标跟手速度，又抑制微小抖动。
+- **光标防抖**：`Cursor` 引入 1px 死区（仅当移动超过死区才更新目标坐标），平滑系数 0.55 既加快光标跟手速度，又抑制微小抖动。
 - **结果缓存**：`get_finger_states` 对相同关键点做 `FINGER_STATE_CACHE` 缓存，降低重复计算。
 - **调试叠加**：检测到手时在预览画面用 `mp_drawing` 画出 21 点骨架，便于校准。
 
@@ -430,16 +449,18 @@ for note in self.notes:
 
 ## 🎮 游戏逻辑设计
 
+![游戏状态流转](Assets/diagrams/game_state_flow.png)
+
 ```
 开始菜单 ──► 选择曲目 ──► 选择难度 ──► 游戏中(下落式钢琴) ──► 结算界面
 ```
 
-- **曲目**：内置 `Twinkle Twinkle`、`Happy Birthday`、`Jingle Bells`、`Ode to Joy` 四首，每首以 `(音名, 时值)` 序列定义于 `PianoSheet`。
+- **曲目**：内置 **7 首**——`Twinkle Twinkle Little Star`、`Happy Birthday`、`Jingle Bells`、`Farewell`（送别）、`Ode to Joy`、`Moonlight Sonata`、`Night Piano No.5`，每首以 `(音名, 时值)` 序列定义于 `PianoSheet`。
 - **曲谱节奏**：各曲谱音符时值已重新调校（整体更密、更快），提升节奏密度与游玩爽快感。
 - **难度**：`Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×` 控制音符下落速度与生成节奏（`speed_multiplier`）。
-- **轨道生成**：每个音符随机分配到 1–10 号轨道，再按曲目的 `scale_notes` 把简谱音名映射到真实音高（如 `C4`/`D5`）。
-- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`。
-- **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
+- **轨道生成**：每个音符随机分配到 1–10 号轨道，再按曲目的 `scale_notes` 把简谱音名映射到真实音高（如 `C4`/`D5`），音符上直接显示音名。
+- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，`AudioManager` 用 64 个混音通道保证长音不被截断。
+- **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/great/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
 - **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。
 
 ---
@@ -448,35 +469,35 @@ for note in self.notes:
 
 ### 1. 命中判定与单次得分
 
-当音符底边进入判定带 `[hit_line, hit_line + hit_zone_height]`（判定带高 35px，判定线 `hit_line = 屏幕高度 - 90`）且对应轨道手指被按下时，按**音符中心与判定带中心的像素距离 `distance`** 评级并结算分数：
+当音符**中心**进入判定带 `[hit_line - 35, hit_line + 35]`（判定线 `hit_line = 屏幕高度 - 90`，判定带上下各 35px）且对应轨道手指被按下时，按**音符中心与判定线的像素距离 `distance`** 评级并结算分数：
 
 | 评级 | 距离阈值 | 基础分 | 连击加成 | 提示色 |
 | --- | --- | --- | --- | --- |
-| PERFECT! | `distance < 10px` | 100 | `+ combo × 5` | 绿 |
-| GREAT! | `distance < 22px` | 70 | `+ combo × 3` | 青 |
-| GOOD | `distance < 35px` | 50 | `+ combo × 2` | 蓝 |
-| MISS | 音符越过屏幕底部仍未被命中 | 0 | 连击清零 | 红 |
+| PERFECT! | `distance < 10.5px`（判定带的 15%） | 100 | `+ combo × 5` | 绿 |
+| GREAT! | `distance < 24.5px`（判定带的 35%） | 80 | `+ combo × 4` | 青 |
+| GOOD | `distance < 42px`（判定带的 60%） | 50 | `+ combo × 2` | 蓝紫 |
+| MISS | 音符越过判定带底部 20px 仍未被命中 | 0 | 连击清零 | 红 |
 
 单次得分 = **基础分 + 当前连击数 × 系数**。例如当前连击为 20 时打出 PERFECT，本次得分 = 100 + 20×5 = 200。连击越高，单次收益越高，是冲分的关键。
 
-> 判定阈值与命中机制详见上文「手势识别实现 → 7. 命中判定与评级」。
-
 ### 2. 连击（Combo）
 
-- 每成功命中一个音符，`combo` 加 1，并记录本局 `max_combo`（最高连击）。
-- 出现 **MISS**（音符漏掉 / 越过屏幕底部）时 `combo` 立即归零。
+- 每成功命中一个音符（含 PERFECT / GREAT / GOOD），`combo` 加 1，并记录本局 `max_combo`（最高连击）。
+- 出现 **MISS**（音符漏掉 / 越过判定带）时 `combo` 立即归零。
 - 连击数直接参与得分公式的加成项，因此保持长连击能放大总分。
 
 ### 3. 准确率（Accuracy）
 
 ```text
-total_notes  = perfect_count + good_count + miss_count
-accuracy     = (perfect_count + good_count) / total_notes × 100%
+total_notes  = perfect_count + great_count + good_count + miss_count
+accuracy     = (perfect_count + great_count + good_count) / total_notes × 100%
 ```
 
-其中 `good_count` 同时计入 **GREAT** 与 **GOOD**（二者在统计上合并为 "Good"），MISS 不计入命中。
+PERFECT、GREAT、GOOD 均计入命中，只有 MISS 不计入。
 
 ### 4. 结算评级（Rating）
+
+![判定评级分支决策树](Assets/diagrams/rating_decision_tree.png)
 
 曲目结束（或演示结束）调用 `calculate_rating()`，依据 **漏失率 `miss_rate`** 与 **PERFECT 率 `perfect_rate`** 给出最终评级：
 
@@ -497,7 +518,7 @@ perfect_rate = perfect_count / total_notes
 | **D** | `miss_rate ≤ 0.40` | Needs Practice |
 | **F** | `miss_rate > 0.40` | Keep Trying! |
 
-> 规则要点：**全连击（无 MISS）**时按 PERFECT 率细分（SSS+ / SSS / SS / S）；一旦漏失，仅按漏失率由高到低评级（S+ → F）。结算界面（`Assets/Song_Completed_Menu.png`）会同时展示分数、最大连击、`Perfect/Good/Miss` 计数、准确率与评级。
+> 规则要点：**全连击（无 MISS）**时按 PERFECT 率细分（SSS+ / SSS / SS / S）；一旦漏失，仅按漏失率由高到低评级（A → F）。结算界面（`Assets/Song_Completed_Menu.png`）会同时展示分数、最大连击、`Perfect/Great/Good/Miss` 计数、准确率与评级；演示模式结束则显示独立的 `Demo Complete!` 界面（`Assets/Demo_Completed_Menu.png`）。
 
 ---
 
@@ -505,40 +526,57 @@ perfect_rate = perfect_count / total_notes
 
 游戏为**全屏**布局。整个游玩过程中（菜单、选曲、演奏、暂停、结算）**摄像头画面始终显示**在界面右下角的预览窗口（含 21 点手部骨架叠加，便于校准）。
 
-**侧边栏仅在曲目演奏时显示**：右侧 300px 侧边栏（`Assets/In_Game_Screen.png`）只在 `in_game` 且未进入结算界面时出现，用于展示曲目名、速度、分数、Perfect/Good/Miss 计数与连击等信息；在菜单、选曲、暂停、结算等其它界面，侧边栏不绘制，仅保留右下角的摄像头预览。
+**侧边栏仅在曲目演奏时显示**：右侧 300px 侧边栏（`Assets/In_Game_Screen.png`）只在 `in_game` 且未进入结算界面时出现，用于展示曲目名、速度、分数、Perfect/Great/Good/Miss 计数与连击等信息；在菜单、选曲、暂停、结算等其它界面，侧边栏不绘制，仅保留右下角的摄像头预览。
 
-左侧游玩区包含 10 条触发后发光的轨道 + 有动态光效的下落音符 + 命中特效和粒子。
+左侧游玩区包含 10 条触发后发光的轨道 + 有动态光效的下落音符（带音名标签）+ 命中特效和粒子。
 
 | 画面 | 文件 | 说明 |
 | --- | --- | --- |
-| 开始菜单 | `Assets/Start_Menu.png` | 标题与"开始/演示"等入口，光标跟随手掌移动 |
-| 选曲菜单 | `Assets/Select_Song_Menu.png` | 曲目列表，握拳点选 |
+| 开始菜单 | `Assets/Start_Menu.png` | 标题与"开始/演示/退出"入口，光标跟随手掌移动 |
+| 选曲菜单 | `Assets/Select_Song_Menu.png` | 7 首曲目列表，握拳点选 |
 | 难度菜单 | `Assets/Select_Difficulty_Menu.png` | Easy / Normal / Hard |
-| 游戏中 | `Assets/In_Game_Screen.png` | 下落音符 + 轨道高亮 + 侧边栏摄像头预览 |
+| 游戏中 | `Assets/In_Game_Screen.png` | 下落音符（带音名）+ 轨道高亮 + 侧边栏统计 |
 | 暂停菜单 | `Assets/Pause_Menu.png` | 暂停时叠加的菜单 |
-| 演示模式 | `Assets/Demo.png` | 无手势自动演奏展示 |
-| 结算界面 | `Assets/Song_Completed_Menu.png` | 分数、最大连击、准确率与评级 |
+| 演示模式 | `Assets/Demo.png` | 无手势自动演奏展示（侧边栏显示 DEMO MODE） |
+| 结算界面 | `Assets/Song_Completed_Menu.png` | 分数、四项计数、最大连击、准确率与评级 |
+| 演示结算 | `Assets/Demo_Completed_Menu.png` | 演示结束的独立界面（Play Again / Back to Menu） |
 
-![Start Menu](Assets/Start_Menu.png)
+![Select Song](Assets/Select_Song_Menu.png)
+![Select Difficulty](Assets/Select_Difficulty_Menu.png)
 ![In Game](Assets/In_Game_Screen.png)
+![In Game Demo](Assets/Demo.png)
+![Pause Menu](Assets/Pause_Menu.png)
 ![Song Completed](Assets/Song_Completed_Menu.png)
+![Demo Completed](Assets/Demo_Completed_Menu.png)
 
 ---
 
 ## 📁 目录结构
 
+![项目目录结构](Assets/diagrams/project_structure.png)
+
 ```
 piano_game/
 ├── game.py                 # 主程序：手势识别 + 游戏逻辑 + 渲染
-├── Piano/                  # 88 个钢琴采样 tone(1).wav ~ tone(88).wav
-├── Assets/                 # 游戏画面截图（README 用）
+├── Piano/                  # 88 个钢琴采样 tone(1).wav ~ tone(88).wav（Git LFS）
+├── Assets/                 # 游戏画面截图与流程图（README 用）
 │   ├── Start_Menu.png
 │   ├── Select_Song_Menu.png
 │   ├── Select_Difficulty_Menu.png
 │   ├── In_Game_Screen.png
 │   ├── Pause_Menu.png
 │   ├── Demo.png
-│   └── Song_Completed_Menu.png
+│   ├── Demo_Completed_Menu.png
+│   ├── Song_Completed_Menu.png
+│   ├── Joint_Structure.png
+│   └── diagrams/           # 技术文档流程图
+│       ├── gesture_pipeline.png        # 手势识别数据处理流水线
+│       ├── game_state_flow.png         # 游戏状态流转图
+│       ├── rating_decision_tree.png    # 判定评级分支决策树
+│       ├── quick_run_guide.png         # 运行步骤速查
+│       ├── install_dependencies.png    # 系统依赖安装流程
+│       ├── piano_samples_deploy.png    # 钢琴采样部署步骤
+│       └── project_structure.png       # 项目目录结构
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -573,18 +611,21 @@ piano_game/
 
 每首曲谱在 `PianoSheet.get_song()` 中以「简谱数字 + 八度符号」描述，例如 `'1'`、`'5'`、`'1''`（高八度）、`'6'`、`'7'`，并配一张 `scale_notes` 映射表把简谱数字翻译成带八度的真实音名：
 
-| 曲谱 | scale_notes 示例 | 说明 |
-| --- | --- | --- |
-| Twinkle Twinkle | `1→C4, 2→D4 … 7→B4` | C 大调，中音区 |
-| Happy Birthday | `5→G4, 6→A4, 7→B4, 1'→C5 … 4'→F5` | 含高八度 |
-| Jingle Bells | `1→C4 … 5→G4` | C 大调五音 |
-| Ode to Joy | `1→C4 … 7'→B5, 1''→C6` | 跨三个八度 |
+| 曲谱 | 调性 | scale_notes 示例 | 说明 |
+| --- | --- | --- | --- |
+| Twinkle Twinkle | C | `1→C4, 2→D4 … 7→B4` | C 大调，中音区 |
+| Happy Birthday | C | `5→G4 … 1'→C5 … 4'→F5` | 含高八度 |
+| Jingle Bells | C | `1→C4 … 5→G4` | C 大调五音 |
+| Farewell（送别） | C | `7̣→B3 … 1→C4 … 4'→F5` | 跨两个八度 |
+| Ode to Joy | C | `1→C4 … 7'→B5, 1''→C6` | 跨三个八度 |
+| Moonlight Sonata | C#m | `3→E4, 5→G#4 … 3'→E5` | 升号调（含 G#/D#） |
+| Night Piano No.5 | C | `1→C4 … b3'→Eb5 … b7''→Bb6` | 含降号（Eb/Bb），跨四个八度 |
 
 游戏循环按 `notes` 列表（每个元素为 `(简谱数字, 时值)`）依次下落音符；当玩家命中时，先用 `parse_note_name_simple()` 把简谱数字解析为 `(音名, 八度)`，再经 `get_sample_file_for_note()` 映射到 `tone(n).wav` 并播放，从而实现「简谱 → 真实钢琴采样」的闭环。
 
 ### 3. 曲谱来源
 
-> 游戏内置曲谱（Twinkle Twinkle / Happy Birthday / Jingle Bells / Ode to Joy 等）均由作者根据**网络上的乐曲简谱**人工整理、转换为上述简谱数字格式而来，仅用于演示与学习，版权归原曲作者所有。
+> 游戏内置曲谱（Twinkle Twinkle / Happy Birthday / Jingle Bells / Farewell / Ode to Joy / Moonlight Sonata / Night Piano No.5 等）均由作者根据**网络上的乐曲简谱**人工整理、转换为上述简谱数字格式而来，仅用于演示与学习，版权归原曲作者所有。
 
 ---
 

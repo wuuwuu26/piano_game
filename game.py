@@ -53,8 +53,8 @@ GAME_WIDTH = SCREEN_WIDTH - SIDEBAR_WIDTH
 GAME_HEIGHT = SCREEN_HEIGHT
 
 # 摄像头预览窗口尺寸
-CAMERA_PREVIEW_WIDTH = 320
-CAMERA_PREVIEW_HEIGHT = 240
+CAMERA_PREVIEW_WIDTH = 280
+CAMERA_PREVIEW_HEIGHT = 210
 CAMERA_PREVIEW_X = GAME_WIDTH + (SIDEBAR_WIDTH - CAMERA_PREVIEW_WIDTH) // 2
 CAMERA_PREVIEW_Y = SCREEN_HEIGHT - CAMERA_PREVIEW_HEIGHT - 15
 
@@ -415,7 +415,7 @@ FONT_XLARGE = pygame.font.Font(None, int(120 * font_scale))
 
 # 预渲染文本缓存
 PRERENDERED_TEXTS = {}
-TEXT_CACHE_MAX_SIZE = 300
+TEXT_CACHE_MAX_SIZE = 500
 
 def get_prerendered_text(font, text, color):
     key = (id(font), text, color[0], color[1], color[2])
@@ -1208,7 +1208,7 @@ else:
     print(f"⚠️ 采样目录不存在: {SAMPLES_DIR}")
 
 # ============================================
-# 🎮 Menu System - 快速动画版 + 缓存优化
+# 🎮 Menu System - 统一按键样式（参照结算菜单）
 # ============================================
 
 class Menu:
@@ -1220,12 +1220,13 @@ class Menu:
         
         self.button_cache = {}
         self.overlay_cache = {}
-        self.title_glow_cache = {}  # 标题发光纹理缓存
+        self.title_text_cache = {}
+        self.title_line_cache = {}
         
-        # 按钮渐变动画 - 快速
+        # 按钮渐变动画 - 速度更快
         self.button_alpha = {}
         self.button_target_alpha = {}
-        self.button_animation_speed = 25
+        self.button_animation_speed = 60  # 从50提高到60
         
         self.options = [
             {"label": "Start Game", "action": "start"},
@@ -1261,62 +1262,40 @@ class Menu:
         self.is_demo_mode = False
         self.selected_song_id = None
         
-        # 标题动态效果
         self.title_time = 0
-        self.cached_title_texture = None  # 缓存标题纹理
-        self.cached_title_text = None
-        self.cached_title_font = None
-        self.cached_title_frame = -1  # 用于更新发光动画
         
-        # 初始化按钮透明度
         self._init_button_alphas()
         
     def _init_button_alphas(self):
-        """初始化所有按钮的透明度"""
-        # 主菜单按钮
         for i in range(len(self.options)):
             key = f"main_{i}"
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
         
-        # 暂停菜单按钮
         for i in range(len(self.pause_options)):
             key = f"pause_{i}"
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
         
-        # 难度菜单按钮
         for i in range(len(self.difficulty_options)):
             key = f"diff_{i}"
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
         
-        # 返回按钮
         self.button_alpha["back"] = 0
         self.button_target_alpha["back"] = 255
         
-        # 歌曲列表项
         for i in range(len(self.song_list)):
             key = f"song_{i}"
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
         
-        # 标题
         self.button_alpha["title"] = 0
         self.button_target_alpha["title"] = 255
-        
-        # 歌曲名
         self.button_alpha["song_name"] = 0
         self.button_target_alpha["song_name"] = 255
         
-        # 评分相关
-        self.button_alpha["rating"] = 0
-        self.button_target_alpha["rating"] = 255
-        self.button_alpha["desc"] = 0
-        self.button_target_alpha["desc"] = 255
-        
     def _update_button_alpha(self, key):
-        """更新单个按钮的透明度动画 - 快速"""
         if key not in self.button_alpha:
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
@@ -1334,7 +1313,6 @@ class Menu:
     def set_visible(self, visible):
         self.visible = visible
         if visible:
-            # 重新初始化透明度动画
             for key in self.button_alpha:
                 self.button_alpha[key] = 0
                 self.button_target_alpha[key] = 255
@@ -1345,7 +1323,6 @@ class Menu:
         self.show_difficulty_menu = False
         self.show_main_menu = False
         self.hover_index = -1
-        # 重置透明度
         for key in self.button_alpha:
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
@@ -1355,7 +1332,6 @@ class Menu:
         self.show_song_menu = False
         self.show_difficulty_menu = False
         self.hover_index = -1
-        # 重置透明度
         for key in self.button_alpha:
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
@@ -1368,15 +1344,13 @@ class Menu:
         self.mouse_y = mouse_y
         self.is_clicking = is_clicking
         
-        # 更新标题动画时间
-        self.title_time += 0.02
+        self.title_time += 0.04  # 加快标题动画速度
         
         if self.click_cooldown > 0:
             self.click_cooldown -= 1
         
         self.hover_index = -1
         
-        # 使用与 draw 方法完全相同的坐标计算
         if self.show_difficulty_menu:
             start_y = self.height // 2 - int(80 * self.scale)
             item_height = int(100 * self.scale)
@@ -1500,7 +1474,6 @@ class Menu:
                         self.show_main_menu = False
                         self.is_demo_mode = (action == "demo")
                         self.show_difficulty_menu = False
-                        # 重置歌曲列表按钮透明度
                         for i in range(len(self.song_list)):
                             key = f"song_{i}"
                             self.button_alpha[key] = 0
@@ -1518,7 +1491,6 @@ class Menu:
         if color is None:
             color = WHITE
             
-        # 使用alpha值作为缓存键的一部分
         cache_key = (text, width, height, hover, int(alpha), color[0], color[1], color[2])
         if cache_key in self.button_cache:
             return self.button_cache[cache_key].copy()
@@ -1526,63 +1498,84 @@ class Menu:
         button = pygame.Surface((width, height), pygame.SRCALPHA)
         border_radius = 18
         
-        # 计算透明度
         actual_alpha = int(alpha)
         
-        # 悬停时背景更亮
         if hover:
-            bg_color = (60, 60, 30, min(220, actual_alpha))
+            for y in range(height):
+                ratio = y / height
+                r = int(70 * (1 - ratio) + 100 * ratio)
+                g = int(60 * (1 - ratio) + 85 * ratio)
+                b = int(40 * (1 - ratio) + 60 * ratio)
+                alpha_val = int(min(220, actual_alpha) * (1 - ratio * 0.15))
+                pygame.draw.line(button, (r, g, b, alpha_val), (0, y), (width, y))
             border_color = (255, 215, 0, min(255, actual_alpha))
             border_width = 3
             text_color = YELLOW
-            # 悬停时内部发光
-            inner_glow_color = (255, 215, 0, min(30, actual_alpha // 8))
+            inner_glow_color = (255, 215, 0, min(25, actual_alpha // 10))
             inner_rect = (4, 4, width - 8, height - 8)
             draw_rounded_rect_aa(button, inner_glow_color, inner_rect, max(0, border_radius - 4))
         else:
-            # 根据透明度调整背景
-            bg_alpha = min(200, actual_alpha)
-            bg_color = (0, 0, 0, bg_alpha)
+            for y in range(height):
+                ratio = y / height
+                r = int(25 * (1 - ratio) + 45 * ratio)
+                g = int(25 * (1 - ratio) + 45 * ratio)
+                b = int(35 * (1 - ratio) + 65 * ratio)
+                alpha_val = int(min(200, actual_alpha) * (1 - ratio * 0.1))
+                pygame.draw.line(button, (r, g, b, alpha_val), (0, y), (width, y))
             border_color = (80, 80, 120, min(200, actual_alpha))
             border_width = 2
             text_color = color
         
-        # 主背景
-        draw_rounded_rect_aa(button, bg_color, (0, 0, width, height), border_radius)
+        mask = pygame.Surface((width, height), pygame.SRCALPHA)
+        mask.fill((0, 0, 0, 0))
+        draw_rounded_rect_aa(mask, (255, 255, 255, min(255, actual_alpha)), (0, 0, width, height), border_radius)
+        button.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
-        # 边框
         draw_rounded_rect_aa(button, border_color, (0, 0, width, height), border_radius, border_width)
         
-        # 文字
+        highlight_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        highlight_h = max(2, int(height * 0.08))
+        highlight_rect = (width // 6, 2, width * 2 // 3, highlight_h)
+        highlight_color = (255, 255, 255, min(15, actual_alpha // 16)) if not hover else (255, 255, 200, min(25, actual_alpha // 10))
+        draw_rounded_rect_aa(highlight_surface, highlight_color, highlight_rect, border_radius // 3)
+        button.blit(highlight_surface, (0, 0))
+        
+        bottom_glow = pygame.Surface((width, height), pygame.SRCALPHA)
+        bottom_h = max(2, int(height * 0.06))
+        bottom_rect = (width // 4, height - bottom_h - 2, width // 2, bottom_h)
+        bottom_color = (100, 200, 255, min(10, actual_alpha // 25)) if not hover else (255, 215, 0, min(20, actual_alpha // 12))
+        draw_rounded_rect_aa(bottom_glow, bottom_color, bottom_rect, border_radius // 3)
+        button.blit(bottom_glow, (0, 0))
+        
         font_size = int(56 * self.scale)
         if MONO_FONT_PATH:
             font = pygame.font.Font(MONO_FONT_PATH, font_size)
         else:
             font = pygame.font.Font(None, font_size)
         
-        # 文字阴影 - 透明度跟随
         shadow_alpha = min(128, actual_alpha // 2)
         shadow_text = get_prerendered_text(font, text, (0, 0, 0))
         shadow_text.set_alpha(shadow_alpha)
-        shadow_rect = shadow_text.get_rect(center=(width // 2 + 1, height // 2 + 1))
+        shadow_rect = shadow_text.get_rect(center=(width // 2 + 2, height // 2 + 2))
         button.blit(shadow_text, shadow_rect)
         
-        # 主文字
         text_surface = get_prerendered_text(font, text, text_color)
         text_surface.set_alpha(actual_alpha)
         text_rect = text_surface.get_rect(center=(width // 2, height // 2))
         button.blit(text_surface, text_rect)
         
-        # 悬停发光效果
         if hover and actual_alpha > 50:
-            glow_alpha = min(20, actual_alpha // 12)
+            glow_font = pygame.font.Font(None, font_size)
             for r in range(3, 0, -1):
-                glow_surf = get_prerendered_text(font, text, (255, 215, 0))
+                glow_alpha = min(12, actual_alpha // 20)
+                glow_surf = get_prerendered_text(glow_font, text, (255, 215, 0))
                 glow_surf.set_alpha(glow_alpha // (4 - r))
                 button.blit(glow_surf, (text_rect.x - r, text_rect.y - r))
         
-        if len(self.button_cache) > 30:
-            self.button_cache.clear()
+        if len(self.button_cache) > 40:
+            keys_to_remove = list(self.button_cache.keys())[:20]
+            for k in keys_to_remove:
+                del self.button_cache[k]
         self.button_cache[cache_key] = button.copy()
         
         return button
@@ -1591,96 +1584,50 @@ class Menu:
         button = self._get_button_surface(text, width, height, hover, alpha, color)
         surface.blit(button, (int(x), int(y)))
     
-    def _get_title_glow_texture(self, text, font):
-        """创建字体边缘发光效果 - 使用多图层扩展发光（带缓存）"""
-        # 检查缓存 - 每30帧更新一次发光动画
-        current_frame = int(self.title_time * 10) % 30
-        cache_key = (text, id(font), current_frame // 5)  # 每5帧更新一次
+    def _get_cached_title_text(self, text, font):
+        cache_key = (text, id(font))
+        if cache_key in self.title_text_cache:
+            return self.title_text_cache[cache_key]
         
-        if cache_key in self.title_glow_cache:
-            return self.title_glow_cache[cache_key]
-        
-        # 先渲染文字
         text_surface = get_prerendered_text(font, text, YELLOW)
-        text_rect = text_surface.get_rect()
+        shadow_surface = get_prerendered_text(font, text, BLACK)
         
-        # 创建发光表面 - 比文字大一圈
-        glow_radius = 20
-        glow_surface = pygame.Surface((text_rect.width + glow_radius * 2, 
-                                       text_rect.height + glow_radius * 2), pygame.SRCALPHA)
+        self.title_text_cache[cache_key] = (text_surface, shadow_surface)
+        if len(self.title_text_cache) > 5:
+            self.title_text_cache.clear()
         
-        # 使用mask获取文字形状
-        mask = pygame.Surface(text_rect.size, pygame.SRCALPHA)
-        mask.blit(text_surface, (0, 0))
+        return text_surface, shadow_surface
+    
+    def _get_cached_title_line(self, center_x, line_y, line_width, time_val):
+        cache_key = (int(center_x), int(line_y), int(line_width), int(time_val * 10) % 20)
+        if cache_key in self.title_line_cache:
+            return self.title_line_cache[cache_key]
         
-        # 获取文字像素位置 - array_alpha 返回 (height, width) 形状
-        mask_array = pygame.surfarray.array_alpha(mask)
-        h, w = mask_array.shape
+        line_surface = pygame.Surface((line_width + 80, 20), pygame.SRCALPHA)
         
-        # 边缘发光 - 使用膨胀算法（简化版，提高性能）
-        glow_color = (255, 215, 0)
-        glow_layers = 5  # 减少层数提高性能
+        # 加快动画速度 - 使用更快的频率
+        speed = 3.0  # 从2.0提高到3.0
+        for i in range(3):
+            alpha = int(80 * (1 - i / 3) * (0.7 + 0.3 * math.sin(time_val * speed + i)))
+            color = (255, 215, 0, alpha)
+            y_offset = i * 2
+            width_offset = i * 15
+            pygame.draw.line(line_surface, color, 
+                           (20 + width_offset, y_offset + 4), 
+                           (line_width - width_offset + 20, y_offset + 4), 3)
         
-        # 预计算发光偏移量
-        offsets = []
-        for layer in range(glow_layers, 0, -1):
-            offset = glow_layers - layer + 1
-            alpha = int(30 * (1 - layer / glow_layers) * (0.7 + 0.3 * math.sin(self.title_time * 2 + layer * 0.5)))
-            offsets.append((offset, max(1, alpha)))
-        
-        # 对每个像素进行膨胀
-        for y in range(h):
-            for x in range(w):
-                if mask_array[y][x] > 50:
-                    # 在周围绘制发光点
-                    for offset, alpha in offsets:
-                        for dy in range(-offset, offset + 1):
-                            for dx in range(-offset, offset + 1):
-                                if abs(dx) + abs(dy) <= offset:
-                                    px = x + dx + glow_radius
-                                    py = y + dy + glow_radius
-                                    if 0 <= px < glow_surface.get_width() and 0 <= py < glow_surface.get_height():
-                                        existing = glow_surface.get_at((px, py))
-                                        new_alpha = min(255, existing[3] + alpha // 4)
-                                        glow_surface.set_at((px, py), (glow_color[0], glow_color[1], glow_color[2], new_alpha))
-        
-        # 模糊处理（使用一次缩放模糊）
-        blurred = pygame.transform.smoothscale(glow_surface, 
-                                              (glow_surface.get_width() // 2, glow_surface.get_height() // 2))
-        blurred = pygame.transform.smoothscale(blurred, 
-                                              (glow_surface.get_width(), glow_surface.get_height()))
-        
-        # 合并到发光表面
-        glow_surface.blit(blurred, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-        
-        # 在中心放置原始文字（最亮）
-        glow_surface.blit(text_surface, (glow_radius, glow_radius))
-        
-        # 添加文字描边发光（简化）
-        for r in range(2, 0, -1):
-            alpha = int(30 * (1 - r / 2))
-            stroke_surface = get_prerendered_text(font, text, (255, 215, 0))
-            stroke_surface.set_alpha(alpha)
-            glow_surface.blit(stroke_surface, (glow_radius - r, glow_radius - r))
-            glow_surface.blit(stroke_surface, (glow_radius + r, glow_radius - r))
-            glow_surface.blit(stroke_surface, (glow_radius - r, glow_radius + r))
-            glow_surface.blit(stroke_surface, (glow_radius + r, glow_radius + r))
-        
-        # 缓存
-        if len(self.title_glow_cache) > 10:
-            # 保留最近使用的缓存
-            keys_to_remove = list(self.title_glow_cache.keys())[:len(self.title_glow_cache) - 10]
+        self.title_line_cache[cache_key] = line_surface
+        if len(self.title_line_cache) > 30:
+            keys_to_remove = list(self.title_line_cache.keys())[:15]
             for k in keys_to_remove:
-                del self.title_glow_cache[k]
-        self.title_glow_cache[cache_key] = glow_surface
+                del self.title_line_cache[k]
         
-        return glow_surface
+        return line_surface
     
     def draw(self, surface):
         if not self.visible:
             return
         
-        # 使用背景图片
         bg_key = 'main'
         if self.show_difficulty_menu or self.show_song_menu:
             bg_key = 'song'
@@ -1701,7 +1648,6 @@ class Menu:
                 self.overlay_cache[overlay_key] = overlay
             surface.blit(self.overlay_cache[overlay_key], (0, 0))
             
-            # 更新并获取标题透明度
             title_alpha = self._update_button_alpha("title")
             title_text = get_prerendered_text(FONT_XLARGE, "Select Difficulty", YELLOW)
             title_text.set_alpha(title_alpha)
@@ -1720,12 +1666,6 @@ class Menu:
                 song_alpha = self._update_button_alpha("song_name")
                 song_text = get_prerendered_text(FONT_MEDIUM, f"Song: {song_name}", WHITE)
                 song_text.set_alpha(song_alpha)
-                bg_width = song_text.get_width() + 60
-                bg_height = song_text.get_height() + 30
-                bg_x = self.width // 2 - bg_width // 2
-                bg_y = int(210 * self.scale) - 15
-                bg_rect = pygame.Rect(bg_x, bg_y, bg_width, bg_height)
-                draw_rounded_rect_alpha(surface, (0, 0, 0, min(200, song_alpha // 2)), bg_rect, 12)
                 song_rect = song_text.get_rect(center=(self.width // 2, int(210 * self.scale) + 15))
                 surface.blit(song_text, song_rect)
             
@@ -1737,8 +1677,10 @@ class Menu:
                 x = self.width // 2 - text_width // 2
                 key = f"diff_{i}"
                 alpha = self._update_button_alpha(key)
+                colors = [(100, 255, 100), (255, 215, 0), (255, 100, 100)]
+                color = colors[i] if i < len(colors) else WHITE
                 self.draw_button(surface, option["label"], x, y, text_width, text_height, 
-                               i == self.hover_index, alpha)
+                               i == self.hover_index, alpha, color)
             
             back_y = start_y + len(self.difficulty_options) * int(100 * self.scale) + int(60 * self.scale)
             back_x = self.width // 2 - int(160 * self.scale)
@@ -1785,19 +1727,46 @@ class Menu:
                 key = f"song_{idx}"
                 alpha = self._update_button_alpha(key)
                 
+                item_surface = pygame.Surface((text_width, text_height), pygame.SRCALPHA)
+                
                 if hover:
-                    bg_color = (255, 255, 0, min(60, alpha // 4))
-                    border_color = YELLOW
+                    for dy in range(int(text_height)):
+                        ratio = dy / text_height
+                        r = int(70 * (1 - ratio) + 100 * ratio)
+                        g = int(60 * (1 - ratio) + 85 * ratio)
+                        b = int(40 * (1 - ratio) + 60 * ratio)
+                        alpha_val = int(min(220, alpha) * (1 - ratio * 0.15))
+                        pygame.draw.line(item_surface, (r, g, b, alpha_val), (0, dy), (text_width, dy))
+                    border_color = (255, 215, 0, min(255, alpha))
                     text_color = YELLOW
+                    inner_glow_color = (255, 215, 0, min(20, alpha // 12))
+                    inner_rect = (4, 4, text_width - 8, text_height - 8)
+                    draw_rounded_rect_aa(item_surface, inner_glow_color, inner_rect, max(0, border_radius - 4))
                 else:
-                    bg_color = (0, 0, 0, min(180, alpha // 2))
-                    border_color = (60, 60, 80)
+                    for dy in range(int(text_height)):
+                        ratio = dy / text_height
+                        r = int(25 * (1 - ratio) + 45 * ratio)
+                        g = int(25 * (1 - ratio) + 45 * ratio)
+                        b = int(35 * (1 - ratio) + 65 * ratio)
+                        alpha_val = int(min(180, alpha // 2) * (1 - ratio * 0.1))
+                        pygame.draw.line(item_surface, (r, g, b, alpha_val), (0, dy), (text_width, dy))
+                    border_color = (80, 80, 120, min(200, alpha // 2))
                     text_color = (200, 200, 200)
                 
-                draw_rounded_rect_alpha(surface, bg_color, (x, y, text_width, text_height), border_radius)
-                if hover:
-                    draw_rounded_rect_alpha(surface, (0, 0, 0, 0), (x, y, text_width, text_height),
-                                          border_radius, border_width=3, border_color_alpha=border_color)
+                mask = pygame.Surface((text_width, text_height), pygame.SRCALPHA)
+                mask.fill((0, 0, 0, 0))
+                draw_rounded_rect_aa(mask, (255, 255, 255, min(255, alpha)), (0, 0, text_width, text_height), border_radius)
+                item_surface.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                
+                draw_rounded_rect_aa(item_surface, border_color, (0, 0, text_width, text_height), border_radius, 2 if not hover else 3)
+                
+                if not hover:
+                    highlight_surface = pygame.Surface((text_width, text_height), pygame.SRCALPHA)
+                    highlight_h = max(2, int(text_height * 0.08))
+                    highlight_rect = (text_width // 6, 2, text_width * 2 // 3, highlight_h)
+                    highlight_color = (255, 255, 255, min(10, alpha // 20))
+                    draw_rounded_rect_aa(highlight_surface, highlight_color, highlight_rect, border_radius // 3)
+                    item_surface.blit(highlight_surface, (0, 0))
                 
                 font_size = int(44 * self.scale)
                 if MONO_FONT_PATH:
@@ -1807,8 +1776,18 @@ class Menu:
                 
                 text_surface = get_prerendered_text(font, song['name'], text_color)
                 text_surface.set_alpha(alpha)
-                text_rect = text_surface.get_rect(center=(self.width // 2, y + text_height // 2))
-                surface.blit(text_surface, text_rect)
+                text_rect = text_surface.get_rect(center=(text_width // 2, text_height // 2))
+                item_surface.blit(text_surface, text_rect)
+                
+                if hover and alpha > 50:
+                    glow_font = pygame.font.Font(None, font_size)
+                    for r in range(3, 0, -1):
+                        glow_alpha = min(10, alpha // 25)
+                        glow_surf = get_prerendered_text(glow_font, song['name'], (255, 215, 0))
+                        glow_surf.set_alpha(glow_alpha // (4 - r))
+                        item_surface.blit(glow_surf, (text_rect.x - r, text_rect.y - r))
+                
+                surface.blit(item_surface, (int(x), int(y)))
             
             back_y = start_y + visible_items * item_height + int(60 * self.scale)
             back_x = self.width // 2 - int(160 * self.scale)
@@ -1825,42 +1804,26 @@ class Menu:
                 self.overlay_cache[overlay_key] = overlay
             surface.blit(self.overlay_cache[overlay_key], (0, 0))
             
-            # 动态标题 - 使用字体边缘发光效果（带缓存）
             title_font = FONT_XLARGE
             title_text = "Gesture Rhythm Master"
             
-            # 计算标题位置
-            temp_title = get_prerendered_text(title_font, title_text, YELLOW)
-            title_rect = temp_title.get_rect(center=(self.width // 2, int(180 * self.scale)))
+            title_alpha = self._update_button_alpha("title")
+            title_surface, shadow_surface = self._get_cached_title_text(title_text, title_font)
             
-            # 脉动缩放
-            scale = 1.0 + 0.015 * math.sin(self.title_time * 1.2)
+            title_rect = title_surface.get_rect(center=(self.width // 2, int(180 * self.scale)))
             
-            # 使用缓存的标题纹理
-            glow_texture = self._get_title_glow_texture(title_text, title_font)
-            glow_rect = glow_texture.get_rect(center=title_rect.center)
+            shadow_surface.set_alpha(title_alpha // 2)
+            surface.blit(shadow_surface, (title_rect.x + 3, title_rect.y + 3))
+            title_surface.set_alpha(title_alpha)
+            surface.blit(title_surface, title_rect)
             
-            # 应用缩放
-            if scale != 1.0:
-                scaled_width = int(glow_rect.width * scale)
-                scaled_height = int(glow_rect.height * scale)
-                if scaled_width > 0 and scaled_height > 0:
-                    scaled_glow = pygame.transform.scale(glow_texture, (scaled_width, scaled_height))
-                    scaled_rect = scaled_glow.get_rect(center=title_rect.center)
-                    surface.blit(scaled_glow, scaled_rect)
-            else:
-                surface.blit(glow_texture, glow_rect)
-            
-            # 标题下方装饰线条
+            # 装饰线条 - 使用更快的动画
             line_y = title_rect.bottom + 15
-            line_width = int(400 * (0.7 + 0.3 * math.sin(self.title_time * 1.8)))
+            line_width = int(400 * (0.7 + 0.3 * math.sin(self.title_time * 3.6)))  # 从1.8提高到3.6
             line_x = self.width // 2 - line_width // 2
-            for i in range(3):
-                alpha = int(30 * (1 - i / 3) * (0.6 + 0.4 * math.sin(self.title_time * 2 + i)))
-                color = (255, 215, 0, alpha)
-                pygame.draw.line(surface, color, 
-                               (line_x + i * 20, line_y + i * 2), 
-                               (line_x + line_width - i * 20, line_y + i * 2), 3)
+            
+            line_surface = self._get_cached_title_line(self.width // 2, line_y, line_width, self.title_time)
+            surface.blit(line_surface, (line_x - 20, line_y - 4))
             
             start_y = self.height // 2 - int(60 * self.scale)
             for i, option in enumerate(self.options):
@@ -1912,7 +1875,7 @@ class Menu:
                                i == self.hover_index, alpha, color)
 
 # ============================================
-# 📊 Result Screen (保持与之前相同)
+# 📊 Result Screen
 # ============================================
 
 class ResultScreen:
@@ -1937,17 +1900,16 @@ class ResultScreen:
         self.button_cache = {}
         self.overlay_cache = {}
         
-        # 按钮渐变动画 - 快速
+        # 按钮渐变动画 - 速度更快
         self.button_alpha = {}
         self.button_target_alpha = {}
-        self.button_animation_speed = 25
+        self.button_animation_speed = 60  # 从50提高到60
         
         self.options = [
             {"label": "Play Again", "action": "retry"},
             {"label": "Back to Menu", "action": "menu"}
         ]
         
-        # 初始化按钮透明度
         for i in range(len(self.options)):
             key = f"result_{i}"
             self.button_alpha[key] = 0
@@ -1961,7 +1923,6 @@ class ResultScreen:
         self.button_target_alpha["desc"] = 255
         
     def _update_button_alpha(self, key):
-        """更新按钮透明度动画 - 快速"""
         if key not in self.button_alpha:
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
@@ -1989,7 +1950,6 @@ class ResultScreen:
         self.hover_index = -1
         self.click_cooldown = 15
         self.button_cache.clear()
-        # 重置按钮透明度
         for key in self.button_alpha:
             self.button_alpha[key] = 0
             self.button_target_alpha[key] = 255
@@ -2200,7 +2160,6 @@ class ResultScreen:
             self.overlay_cache[overlay_key] = overlay
         surface.blit(self.overlay_cache[overlay_key], (0, 0))
         
-        # 标题动画
         title_alpha = self._update_button_alpha("title")
         
         if self.is_demo:
@@ -2217,7 +2176,6 @@ class ResultScreen:
         surface.blit(title_shadow, (title_rect.x + 3, title_rect.y + 3))
         surface.blit(title_text, title_rect)
         
-        # Rating 带发光效果
         rating_alpha = self._update_button_alpha("rating")
         rating_font = pygame.font.Font(None, int(130 * self.scale))
         rating_text = get_prerendered_text(rating_font, self.rating, self.rating_color)
@@ -2296,7 +2254,6 @@ class ResultScreen:
                     surface.blit(label_text, (label_x, label_y))
                     surface.blit(value_text, (value_x, value_y))
                 
-                # Accuracy 单独居中显示 - 使用金色
                 acc_y = start_y + 3 * row_height + 10
                 acc_bg_rect = pygame.Rect(start_x, acc_y, total_width, row_height - 10)
                 draw_rounded_rect_alpha(surface, (0, 0, 0, 180), acc_bg_rect, 14)
@@ -2310,7 +2267,6 @@ class ResultScreen:
                     acc_font = pygame.font.Font(None, acc_font_size)
                 
                 accuracy_value = f"{self.stats.get('accuracy', 0):.1f}%"
-                acc_text = "Accuracy: "
                 
                 acc_label_surf = get_prerendered_text(acc_font, "Accuracy: ", GRAY)
                 acc_value_surf = get_prerendered_text(acc_font, accuracy_value, GOLD)
@@ -2330,7 +2286,7 @@ class ResultScreen:
             self.draw_button(surface, option["label"], x, y, w, h, i == self.hover_index, alpha, color)
 
 # ============================================
-# 🎮 Game Class (保持不变)
+# 🎮 Game Class - 玻璃毛玻璃效果 + 性能优化
 # ============================================
 
 NOTE_COLORS = [
@@ -2490,6 +2446,10 @@ class RhythmGame:
         self.last_hit_time = 0
         self.hit_cooldown = 3
         
+        # 缓存背景表面
+        self.cached_game_bg = None
+        self.cached_game_bg_key = None
+        
         self.load_song(self.song_list[0]['id'])
     
     def load_song(self, song_name, speed_multiplier=1.0):
@@ -2513,6 +2473,10 @@ class RhythmGame:
         raw_labels = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5']
         for i in range(10):
             self.track_labels[i+1] = raw_labels[i] if i < len(raw_labels) else f'Track {i+1}'
+        
+        # 清除缓存
+        self.cached_game_bg = None
+        self.cached_game_bg_key = None
         
     def start(self, is_demo=False):
         self.running = True
@@ -2856,16 +2820,45 @@ class RhythmGame:
         
         return box_surface
     
+    def _get_cached_game_bg(self):
+        """缓存游戏背景，减少重复绘制"""
+        cache_key = (self.width, self.height)
+        if self.cached_game_bg is not None and self.cached_game_bg_key == cache_key:
+            return self.cached_game_bg.copy()
+        
+        bg = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        
+        # 玻璃毛玻璃背景
+        for y in range(self.height):
+            ratio = y / self.height
+            alpha = int(60 + 40 * (1 - abs(ratio - 0.5) * 2))
+            color = (20, 25, 35, alpha)
+            pygame.draw.line(bg, color, (0, y), (self.width, y))
+        
+        # 添加噪点纹理
+        for _ in range(30):
+            x = random.randint(0, self.width)
+            y = random.randint(0, self.height)
+            alpha = random.randint(5, 12)
+            size = random.randint(1, 2)
+            pygame.draw.circle(bg, (255, 255, 255, alpha), (x, y), size)
+        
+        self.cached_game_bg = bg
+        self.cached_game_bg_key = cache_key
+        
+        return bg.copy()
+    
     def draw(self, surface):
-        game_bg = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        game_bg.fill((0, 0, 0, 40))
+        # 使用缓存的游戏背景
+        game_bg = self._get_cached_game_bg()
         surface.blit(game_bg, (0, 0))
         
         lane_spacing = self.width / 10
         
+        # 轨道线 - 使用更高效的绘制
         for i in range(11):
             x = int(i * lane_spacing)
-            color = (80, 80, 80) if i % 2 == 0 else (40, 40, 40)
+            color = (80, 80, 80, 60) if i % 2 == 0 else (40, 40, 40, 40)
             pygame.draw.line(surface, color, (x, 0), (x, self.height), 1)
         
         label_font_size = max(10, int(15 * self.scale))
@@ -2874,15 +2867,18 @@ class RhythmGame:
         else:
             font = pygame.font.Font(None, label_font_size)
         
+        # 轨道标签
         for i in range(10):
             x = int(i * lane_spacing + lane_spacing / 2)
             label_bg_rect = pygame.Rect(int(x - lane_spacing/2 + 5), 5, int(lane_spacing - 10), 25)
-            pygame.draw.rect(surface, (0, 0, 0, 150), label_bg_rect, border_radius=4)
+            pygame.draw.rect(surface, (30, 40, 60, 100), label_bg_rect, border_radius=6)
+            pygame.draw.rect(surface, (100, 150, 200, 30), label_bg_rect, border_radius=6, width=1)
             display_label = f"{i+1}"
-            text = get_prerendered_text(font, display_label, GRAY)
+            text = get_prerendered_text(font, display_label, (200, 220, 255))
             text_rect = text.get_rect(center=(x, 18))
             surface.blit(text, text_rect)
         
+        # 轨道发光
         for i in range(10):
             glow_intensity = self.lane_glow[i]
             if glow_intensity > 0.05:
@@ -2894,12 +2890,14 @@ class RhythmGame:
                     glow_surface.fill((255, 255, 100, alpha))
                     surface.blit(glow_surface, (x, 0))
         
+        # 命中区域
         hitbox_surface = self._get_hitbox_surface()
         line_y = self.hit_line + self.hit_zone_height // 2
         box_x = 20
         box_y = line_y - (self.hit_zone_height * 2) // 2
         surface.blit(hitbox_surface, (box_x, box_y))
         
+        # 粒子效果
         if self.particles:
             particles_by_color = {}
             for particle in self.particles:
@@ -2920,9 +2918,11 @@ class RhythmGame:
                             particle['size']
                         )
         
+        # 音符
         for note in self.notes:
             note.draw(surface)
         
+        # 特效文字
         effect_font = pygame.font.Font(None, int(68 * self.scale))
         for effect in self.effects:
             text = get_prerendered_text(effect_font, effect['text'], effect['color'])
@@ -2934,6 +2934,7 @@ class RhythmGame:
             surface.blit(shadow, shadow_rect)
             surface.blit(text, text_rect)
         
+        # 完成等待
         if self.song_completed and len(self.notes) == 0:
             wait_progress = self.song_end_wait_timer / self.song_end_wait_duration
             if wait_progress < 1.0:
@@ -2952,6 +2953,7 @@ class RhythmGame:
                 pygame.draw.rect(surface, (60, 60, 60), (bar_x, bar_y, bar_width, bar_height))
                 pygame.draw.rect(surface, CYAN, (bar_x, bar_y, int(bar_width * wait_progress), bar_height))
         
+        # Combo
         if self.running and not self.paused and not self.showing_result and self.combo > 1 and not self.is_demo:
             combo_font = pygame.font.Font(None, int(150 * self.scale))
             combo_text = get_prerendered_text(combo_font, str(self.combo), YELLOW)
@@ -2960,6 +2962,7 @@ class RhythmGame:
             surface.blit(combo_shadow, (combo_rect.x + 3, combo_rect.y + 3))
             surface.blit(combo_text, combo_rect)
         
+        # Pause
         if self.paused:
             s = pygame.Surface((self.width, self.height))
             s.set_alpha(180)
@@ -2973,7 +2976,7 @@ class RhythmGame:
             surface.blit(pause_text, pause_rect)
 
 # ============================================
-# 🖱️ Cursor - 带防抖功能
+# 🖱️ Cursor
 # ============================================
 
 class Cursor:
@@ -2992,12 +2995,10 @@ class Cursor:
         self.visible = True
         self.click_available = False
         
-        # 平滑插值 - 提高响应速度
         self.smooth_x = SCREEN_WIDTH // 2
         self.smooth_y = SCREEN_HEIGHT // 2
         self.smooth_factor = 0.55
         
-        # 防抖参数
         self.last_x = SCREEN_WIDTH // 2
         self.last_y = SCREEN_HEIGHT // 2
         self.dead_zone = 1.0
@@ -3006,14 +3007,12 @@ class Cursor:
         self.visible = visible
         
     def update(self, x, y, is_fisting):
-        # 防抖：只有移动超过死区才更新位置
         dx = x - self.last_x
         dy = y - self.last_y
         if abs(dx) > self.dead_zone or abs(dy) > self.dead_zone:
             self.last_x = x
             self.last_y = y
         
-        # 使用平滑插值 - 快速跟随
         target_x = self.last_x
         target_y = self.last_y
         
@@ -3356,7 +3355,6 @@ def main():
                             screen_x = max(margin, min(SCREEN_WIDTH - margin, screen_x))
                             screen_y = max(margin, min(SCREEN_HEIGHT - margin, screen_y))
                             
-                            # 使用与光标内部一致的平滑系数
                             mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55
                             mouse_y = mouse_y * (1 - 0.55) + screen_y * 0.55
                             
@@ -3395,9 +3393,20 @@ def main():
             
             screen.fill(BLACK)
             
+            # 侧边栏 - 玻璃毛玻璃效果
             sidebar_rect = pygame.Rect(GAME_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
-            pygame.draw.rect(screen, (20, 20, 35, 220), sidebar_rect)
-            pygame.draw.line(screen, (100, 100, 150), (GAME_WIDTH, 0), (GAME_WIDTH, SCREEN_HEIGHT), 3)
+            sidebar_surface = pygame.Surface((SIDEBAR_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            # 使用渐变毛玻璃效果
+            for y in range(SCREEN_HEIGHT):
+                ratio = y / SCREEN_HEIGHT
+                alpha = int(160 + 60 * (1 - abs(ratio - 0.5) * 2))
+                color = (25, 30, 50, alpha)
+                pygame.draw.line(sidebar_surface, color, (0, y), (SIDEBAR_WIDTH, y))
+            screen.blit(sidebar_surface, (GAME_WIDTH, 0))
+            
+            # 侧边栏边框
+            pygame.draw.line(screen, (100, 150, 220, 120), (GAME_WIDTH, 0), (GAME_WIDTH, SCREEN_HEIGHT), 2)
+            pygame.draw.line(screen, (100, 150, 220, 40), (GAME_WIDTH + 1, 0), (GAME_WIDTH + 1, SCREEN_HEIGHT), 1)
             
             if in_game and not showing_result:
                 game.update(active_numbers, hand_detected, all_finger_states)
@@ -3414,15 +3423,18 @@ def main():
                 
                 sidebar_y = 15
                 
-                title = get_prerendered_text(FONT_MONO_MEDIUM, "Game Info", WHITE)
+                # 侧边栏标题
+                title = get_prerendered_text(FONT_MONO_MEDIUM, "Game Info", (200, 220, 255))
                 title_bg_rect = pygame.Rect(GAME_WIDTH + SIDEBAR_WIDTH//2 - title.get_width()//2 - 15,
                                            sidebar_y + 30 - title.get_height()//2 - 5,
                                            title.get_width() + 30, title.get_height() + 10)
-                pygame.draw.rect(screen, (0, 0, 0, 150), title_bg_rect, border_radius=8)
+                pygame.draw.rect(screen, (40, 50, 80, 120), title_bg_rect, border_radius=10)
+                pygame.draw.rect(screen, (100, 150, 220, 40), title_bg_rect, border_radius=10, width=1)
                 title_rect = title.get_rect(center=(GAME_WIDTH + SIDEBAR_WIDTH//2, sidebar_y + 30))
                 screen.blit(title, title_rect)
                 sidebar_y += 75
                 
+                # 歌曲名
                 song_name = game.current_song
                 song_lines = wrap_text(song_name, FONT_MONO_SMALL, SIDEBAR_WIDTH - 30)
                 for line in song_lines:
@@ -3432,16 +3444,20 @@ def main():
                     sidebar_y += 50
                 sidebar_y += 10
                 
+                # 速度
                 diff_text = f"Speed: {game.speed_multiplier:.1f}x"
                 diff_surface = get_prerendered_text(FONT_MONO_SMALL, diff_text, CYAN)
                 diff_rect = diff_surface.get_rect(center=(GAME_WIDTH + SIDEBAR_WIDTH//2, sidebar_y + 20))
                 screen.blit(diff_surface, diff_rect)
                 sidebar_y += 50
                 
-                pygame.draw.line(screen, (60, 60, 80), (GAME_WIDTH + 15, sidebar_y), (GAME_WIDTH + SIDEBAR_WIDTH - 15, sidebar_y), 1)
+                # 分隔线
+                pygame.draw.line(screen, (100, 150, 220, 60), (GAME_WIDTH + 20, sidebar_y), (GAME_WIDTH + SIDEBAR_WIDTH - 20, sidebar_y), 1)
+                pygame.draw.line(screen, (100, 150, 220, 20), (GAME_WIDTH + 20, sidebar_y + 1), (GAME_WIDTH + SIDEBAR_WIDTH - 20, sidebar_y + 1), 1)
                 sidebar_y += 30
                 
-                score_title = get_prerendered_text(FONT_MONO_SMALL, "Score", WHITE)
+                # Score标题
+                score_title = get_prerendered_text(FONT_MONO_SMALL, "Score", (200, 220, 255))
                 score_title_rect = score_title.get_rect(center=(GAME_WIDTH + SIDEBAR_WIDTH//2, sidebar_y + 18))
                 screen.blit(score_title, score_title_rect)
                 sidebar_y += 48
@@ -3457,7 +3473,7 @@ def main():
                     screen.blit(score_text, score_rect)
                     sidebar_y += 75
                     
-                    stats_title = get_prerendered_text(FONT_MONO_SMALL, "Statistics", WHITE)
+                    stats_title = get_prerendered_text(FONT_MONO_SMALL, "Statistics", (200, 220, 255))
                     stats_title_rect = stats_title.get_rect(center=(GAME_WIDTH + SIDEBAR_WIDTH//2, sidebar_y + 15))
                     screen.blit(stats_title, stats_title_rect)
                     sidebar_y += 40
