@@ -624,7 +624,7 @@ piano_game/
 │   ├── Demo.png
 │   ├── Demo_Completed_Menu.png
 │   ├── Song_Completed_Menu.png
-│   ├── background.jpg             # 游戏背景图（仓库内，不联网加载）
+│   ├── song.jpg                   # 游戏背景图（仓库内，不联网加载）
 │   ├── Joint_Structure.png
 │   └── diagrams/           # 技术文档流程图
 │       ├── gesture_pipeline.png        # 手势识别数据处理流水线
@@ -648,9 +648,9 @@ piano_game/
 
 ![缓存与性能优化](Assets/diagrams/cache_perf_transparent.png)
 
-### 1. 背景图（仓库内 `Assets/background.jpg`，不联网）
+### 1. 背景图（仓库内 `Assets/song.jpg`，不联网）
 
-- 背景图 `Assets/background.jpg`（1920×1280）**已提交进仓库**，**所有界面共用同一张**；运行时直接读取，不再联网下载，也不再生成 `bg_cache/` 缓存目录。
+- 背景图 `Assets/song.jpg`（1920×1280）**已提交进仓库**，**所有界面共用同一张**；运行时直接读取，不再联网下载，也不再生成 `bg_cache/` 缓存目录。
 - 若该文件缺失，自动回退到暖色渐变背景（`create_fallback_bg`，见 `load_bg_images`），保证任何环境都能启动。
 
 ### 2. 运行时内存缓存（不落盘，进程退出即清空）
