@@ -145,7 +145,7 @@ self.cap = cv2.VideoCapture(0, cv2.CAP_ANY)
 
 This is the focus of the project. The entire recognition pipeline is shown in the figure below:
 
-![Visual gesture recognition data processing pipeline](Assets/diagrams/gesture_pipeline.png)
+![Visual gesture recognition data processing pipeline](Assets/diagrams/gesture_pipeline_en.png)
 
 Summarized as:
 
@@ -449,7 +449,7 @@ The judgment band height `hit_zone_height = 35` (judgment line `hit_line = heigh
 
 ## 🎮 Game Logic Design
 
-![Game state flow](Assets/diagrams/game_state_flow.png)
+![Game state flow](Assets/diagrams/game_state_flow_en.png)
 
 ```
 Start menu
@@ -484,7 +484,7 @@ Note enters judgment zone (manual PERFECT/GREAT/GOOD or Demo AUTO)
                                         → speaker
 ```
 
-![Audio playback pipeline](Assets/diagrams/audio_pipeline.png)
+![Audio playback pipeline](Assets/diagrams/audio_pipeline_en.png)
 
 ### 1. Audio engine initialization (game.py:35)
 
@@ -559,7 +559,7 @@ PERFECT, GREAT, and GOOD all count as hits; only MISS does not count.
 
 ### 4. Results rating (Rating)
 
-![Judgment rating branch decision tree](Assets/diagrams/rating_decision_tree.png)
+![Judgment rating branch decision tree](Assets/diagrams/rating_decision_tree_en.png)
 
 When the song ends (or the demo ends), `calculate_rating()` is called, giving the final rating based on the **miss rate `miss_rate`** and the **PERFECT rate `perfect_rate`**:
 
@@ -615,7 +615,7 @@ The left play area contains 10 tracks that glow when triggered + falling notes w
 
 ## 📁 Directory Structure
 
-![Project directory structure](Assets/diagrams/project_structure.png)
+![Project directory structure](Assets/diagrams/project_structure_en.png)
 
 ```
 piano_game/
@@ -650,7 +650,7 @@ piano_game/
 
 The program uses three types of means — "**cache + startup preload + resource pool**" — for performance optimization. The core goal is only one: **make the play hot path (per frame) only do O(1) lookups and lightweight computation**, moving expensive disk reads, decoding, and redrawing to the startup phase or reusing the cache, thereby ensuring stable frame rate and audio-visual sync.
 
-![Cache and performance optimization](Assets/diagrams/cache_perf_transparent.png)
+![Cache and performance optimization](Assets/diagrams/cache_perf_transparent_en.png)
 
 ### 1. Background image (in-repo `Assets/bg_song.jpg`, no network)
 
