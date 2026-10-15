@@ -1,43 +1,49 @@
+<div align="center">
+
+**🌐 English | [简体中文](README_CN.md)**
+
+</div>
+
 # 🎹 Gesture Rhythm Master - Piano Mode
 
-一个基于 **MediaPipe Hands** 的实时手势识别钢琴节奏游戏。玩家无需任何实体键盘——只需在摄像头前用**双手十指**对准屏幕上下落的音符，在正确的时机**弯曲对应手指**即可"弹奏"；在菜单中**移动手掌**控制光标、**握拳**完成点击。
+A real-time, gesture-recognized piano rhythm game built on **MediaPipe Hands**. Players need no physical keyboard at all — simply align both hands' ten fingers with the notes falling on screen in front of the camera, and **bend the corresponding finger** at the right moment to "play" it; in menus, **move your palm** to control the cursor and **make a fist** to click.
 
-> 使用 88 键真实钢琴采样（`Piano/` 目录）进行声音合成，并支持升/降号映射。
+> Uses real piano samples from the 88 keys (`Piano/` directory) for sound synthesis, and supports sharp/flat note mapping.
 
 ![Start Menu](Assets/Start_Menu.png)
 
 ---
 
-## ✨ 特性
+## ✨ Features
 
-- 🖐️ **纯视觉手势操控**：双手 10 指分别对应 10 条轨道，零接触游玩。
-- 🎯 **三种手势语义**：光标移动（手部中心）、菜单点击（握拳）、音符命中（手指弯曲 / 点击）。
-- 🎵 **真实钢琴音色**：88 个 `tone(N).wav` 单声道采样，按音名动态加载与音高映射。
-- 📝 **音符自带音名**：每个下落音符上直接标注真实音名（如 `C#5`、`G#4`），升降号音也能正确显示与发声。
-- 📈 **四级节奏判定**：PERFECT / GREAT / GOOD / MISS 独立计数，含连击（combo）与准确率统计。
-- 🎚️ **三档难度**：Easy / Normal / Hard 对应不同音符下落速度。
-- 🎬 **七首内置曲谱**：小星星、生日歌、铃儿响叮当、送别、欢乐颂、月光奏鸣曲、夜钢琴曲 5 号。
-- 🖥️ **全屏 + 摄像头**：全屏游戏、侧边栏右下角为实时摄像头预览（含手部骨架叠加）。
-- 🤖 **演示模式**：无手势时自动演奏，演示结束有独立的 "Demo Complete!" 结算界面。
-- 🎨 **流畅 UI 动效**：菜单按钮快速淡入、标题发光纹理、音符发光脉冲与轨迹光效。
+- 🖐️ **Fully visual gesture control**: Both hands' 10 fingers map to 10 tracks respectively, for completely contactless play.
+- 🎯 **Three gesture semantics**: Cursor movement (hand center), menu click (fist), and note hit (finger bend / tap).
+- 🎵 **Real piano timbre**: 88 monophonic `tone(N).wav` samples, dynamically loaded and pitch-mapped by note name.
+- 📝 **Notes carry their own note names**: Each falling note is directly labeled with its real note name (e.g. `C#5`, `G#4`), so sharp and flat notes are also displayed and sounded correctly.
+- 📈 **Four-level timing judgment**: PERFECT / GREAT / GOOD / MISS counted independently, with combo and accuracy statistics.
+- 🎚️ **Three difficulty levels**: Easy / Normal / Hard correspond to different note fall speeds.
+- 🎬 **Seven built-in songs**: Twinkle Twinkle Little Star, Happy Birthday, Jingle Bells, Farewell, Ode to Joy, Moonlight Sonata, Night Piano No.5.
+- 🖥️ **Full screen + camera**: Full-screen game, with a live camera preview (including hand skeleton overlay) in the bottom-right of the sidebar.
+- 🤖 **Demo mode**: Auto-plays when no gestures are detected; ends with a separate "Demo Complete!" results screen.
+- 🎨 **Smooth UI animations**: Menu buttons fade in quickly, glowing title texture, note glow pulse and trail light effects.
 
 ---
 
-## 🔧 硬件配置
+## 🔧 Hardware Configuration
 
-本项目在 **Raspberry Pi 5** 上验证通过，但架构也适用于任意带摄像头的 Linux/macOS/Windows 机器。
+This project has been verified on a **Raspberry Pi 5**, but the architecture is also suitable for any Linux/macOS/Windows machine with a camera.
 
-| 部件 | 说明 |
+| Component | Description |
 | --- | --- |
-| 主机 | Raspberry Pi 5（4GB 内存，32GB SD 卡），运行 **Ubuntu 24.04 (arm64)** |
-| 摄像头 | Raspberry Pi Camera Module 3（CSI 接口），由 `rpicam-vid`(libcamera) 输出 MJPEG 流 |
-| 显示 | 1920×1200 HDMI 显示器 |
-| 音频 | USB 音响，`pygame.mixer` 播放采样 |
-| 键盘 | USB 键盘，仅用于 `ESC` 退出、`SPACE` 暂停、`Q` 退出 |
+| Host | Raspberry Pi 5 (4GB RAM, 32GB SD card), running **Ubuntu 24.04 (arm64)** |
+| Camera | Raspberry Pi Camera Module 3 (CSI interface), outputting an MJPEG stream via `rpicam-vid` (libcamera) |
+| Display | 1920×1200 HDMI monitor |
+| Audio | USB speaker, `pygame.mixer` plays the samples |
+| Keyboard | USB keyboard, used only for `ESC` to quit, `SPACE` to pause, `Q` to quit |
 
-### 摄像头数据流（命名管道）
+### Camera data stream (named pipe)
 
-游戏**不**直接调用 `cv2.VideoCapture(0)`，而是由 `CameraManager` 启动 `rpicam-vid` 把 MJPEG 流写入一个命名管道 `/tmp/camera_pipe`，再由 OpenCV 以 `CAP_FFMPEG` 读取。这样可绕开树莓派上 `libcamera` 与 OpenCV 直接采集的兼容问题：
+The game does **not** call `cv2.VideoCapture(0)` directly. Instead, `CameraManager` launches `rpicam-vid` to write an MJPEG stream into a named pipe `/tmp/camera_pipe`, which OpenCV then reads via `CAP_FFMPEG`. This circumvents the compatibility issues between `libcamera` and OpenCV direct capture on the Raspberry Pi:
 
 ```python
 class CameraManager:
@@ -58,102 +64,102 @@ class CameraManager:
         ]
 ```
 
-**摄像头采集规格**：`rpicam-vid` 以 **320×240** 分辨率、默认 **60 FPS**（MJPEG）采集，写入命名管道；OpenCV 以 `CAP_FFMPEG` 读取后镜像，再缩放为 **280×210** 的预览窗口绘制到界面右下角。实际可达帧率取决于 Pi 5 的负载（手势推理 + 渲染），程序会在预览窗口角落实时显示当前 `camera_fps`。
+**Camera capture spec**: `rpicam-vid` captures at **320×240** resolution, default **60 FPS** (MJPEG), and writes to the named pipe; OpenCV reads it via `CAP_FFMPEG`, mirrors it, then scales it to a **280×210** preview window drawn at the bottom-right of the interface. The actual achievable frame rate depends on the Pi 5's load (gesture inference + rendering); the program shows the current `camera_fps` in real time at the corner of the preview window.
 
-> 若使用普通 USB/内置摄像头，可将 `CameraManager` 改为 `cv2.VideoCapture(0)`（并删除 `rpicam-vid` 相关逻辑），其余手势流水线完全复用。
+> If using a regular USB/built-in camera, you can change `CameraManager` to `cv2.VideoCapture(0)` (and remove the `rpicam-vid`-related logic); the rest of the gesture pipeline is fully reused.
 
-### 目标帧率
+### Target frame rate
 
-游戏的标准**目标帧率为 60 FPS**（`TARGET_FPS = 60`），由"计算式精确限帧（`time.sleep` 补齐每帧余量） + `pygame.clock.tick` 兜底"双重机制维持。实际帧率取决于主机负载（MediaPipe 手势推理 + Pygame 渲染）。
+The standard **target frame rate is 60 FPS** (`TARGET_FPS = 60`), maintained by a dual mechanism of "computational precise frame limiting (`time.sleep` filling the per-frame remainder) + `pygame.clock.tick` as a fallback". The actual frame rate depends on the host load (MediaPipe gesture inference + Pygame rendering).
 
 ---
 
-## 🚀 如何运行
+## 🚀 How to Run
 
-### 1. 安装依赖
+### 1. Install dependencies
 
-**系统层**（Ubuntu 24.04 arm64）：
+**System layer** (Ubuntu 24.04 arm64):
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip rpicam-apps   # rpicam-apps 提供 rpicam-vid
+sudo apt install -y python3 python3-pip rpicam-apps   # rpicam-apps provides rpicam-vid
 ```
 
-**Python 依赖**（见 `requirements.txt`）：
+**Python dependencies** (see `requirements.txt`):
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-| 依赖 | 用途 |
+| Dependency | Purpose |
 | --- | --- |
-| `opencv-python` | 摄像头帧读取、BGR↔RGB 转换、镜像、绘制关键点 |
-| `mediapipe` | `solutions.hands` 提供 21 点手部关键点模型 |
-| `pygame` | 游戏渲染、事件循环、音频混音 |
-| `numpy` | 坐标计算与数值处理 |
+| `opencv-python` | Camera frame reading, BGR↔RGB conversion, mirroring, drawing keypoints |
+| `mediapipe` | `solutions.hands` provides the 21-point hand keypoint model |
+| `pygame` | Game rendering, event loop, audio mixing |
+| `numpy` | Coordinate computation and numerical processing |
 
-> 程序会设置 `MEDIAPIPE_DISABLE_GPU=1` 与 `TF_CPP_MIN_LOG_LEVEL=3`，强制 MediaPipe 在 **CPU** 上运行并抑制日志，适合树莓派等无独显环境。
+> The program sets `MEDIAPIPE_DISABLE_GPU=1` and `TF_CPP_MIN_LOG_LEVEL=3`, forcing MediaPipe to run on the **CPU** and suppressing logs, suitable for GPU-less environments such as the Raspberry Pi.
 
-### 2. 准备钢琴采样
+### 2. Prepare piano samples
 
 ```bash
 mkdir -p ~/Piano
-cp -r Piano/* ~/Piano/        # 程序默认从 ~/Piano 读取 tone(N).wav
+cp -r Piano/* ~/Piano/        # The program reads tone(N).wav from ~/Piano by default
 ```
 
-### 3. 运行
+### 3. Run
 
-**方式 A：树莓派（CSI 摄像头 + rpicam-vid）**
+**Method A: Raspberry Pi (CSI camera + rpicam-vid)**
 
 ```bash
-# 确保摄像头已连接并在 raspi-config 中启用
+# Make sure the camera is connected and enabled in raspi-config
 python3 game.py
 ```
 
-**方式 B：普通电脑（USB/内置摄像头）**
+**Method B: Regular computer (USB/built-in camera)**
 
-将 `game.py` 中的 `CameraManager` 改为使用 `cv2.VideoCapture(0)`，并将采样放入 `~/Piano`，其余步骤相同：
+Change `CameraManager` in `game.py` to use `cv2.VideoCapture(0)`, and place the samples into `~/Piano`; the other steps are the same:
 
 ```python
-# 替换 CameraManager 的初始化逻辑为：
+# Replace CameraManager's initialization logic with:
 self.cap = cv2.VideoCapture(0, cv2.CAP_ANY)
 ```
 
-> ⚠️ **未经验证**：方式 B 仅为兼容普通摄像头的参考改法，项目未在非树莓派环境（CSI 摄像头 + rpicam-vid）下实测，手势流水线是否完全可用取决于具体摄像头与驱动，请自行验证。
+> ⚠️ **Unverified**: Method B is only a reference modification for compatibility with regular cameras. The project has not been actually tested in non-Raspberry Pi environments (CSI camera + rpicam-vid). Whether the gesture pipeline is fully usable depends on the specific camera and driver; please verify on your own.
 
-### 4. 运行中的操作
+### 4. In-game controls
 
-| 操作 | 手势 / 按键 |
+| Action | Gesture / Key |
 | --- | --- |
-| 移动菜单光标 | 手掌左右/上下移动 |
-| 确认 / 点击 | 握拳（保持约 3 帧） |
-| 弹奏音符 | 音符到判定线时弯曲对应手指 |
-| 暂停 | `SPACE`（游戏内） |
-| 自动暂停 | 非演示模式下若连续多帧未检测到手，自动暂停并提示 |
-| 退出当前界面 | `ESC` |
-| 退出程序 | `Q` |
+| Move menu cursor | Move palm left/right or up/down |
+| Confirm / click | Make a fist (hold for about 3 frames) |
+| Play a note | Bend the corresponding finger when the note reaches the judgment line |
+| Pause | `SPACE` (in-game) |
+| Auto-pause | In non-demo mode, if no hand is detected for several consecutive frames, auto-pause and prompt |
+| Exit current screen | `ESC` |
+| Quit the program | `Q` |
 
 ---
 
-## 🤚 手势识别实现（核心）
+## 🤚 Gesture Recognition Implementation (Core)
 
-这是本项目的重点。整套识别链路如下图所示：
+This is the focus of the project. The entire recognition pipeline is shown in the figure below:
 
-![视觉手势识别数据处理流水线](Assets/diagrams/gesture_pipeline.png)
+![Visual gesture recognition data processing pipeline](Assets/diagrams/gesture_pipeline.png)
 
-概括为：
+Summarized as:
 
 ```
-摄像头帧 ──► [镜像 flip] ──► [BGR→RGB]
-        ──► MediaPipe Hands ──► 21 关键点 (归一化 0~1)
-        ──► ① 手部中心 → 屏幕光标
-        ──► ② 每指伸展状态 → 握拳判定 → 菜单点击
-        ──► ③ 手指"伸展→弯曲"跳变 → 对应轨道音符命中
+Camera frame ──► [mirror flip] ──► [BGR→RGB]
+        ──► MediaPipe Hands ──► 21 keypoints (normalized 0~1)
+        ──► ① Hand center → screen cursor
+        ──► ② Per-finger extension state → fist detection → menu click
+        ──► ③ Finger "extend→bend" jump → note hit on the corresponding track
 ```
 
-### 1. 手部关键点检测（MediaPipe Hands）
+### 1. Hand keypoint detection (MediaPipe Hands)
 
-初始化一个可检测**双手**的轻量模型（`model_complexity=0` 保证树莓派上的实时性）：
+Initialize a lightweight model that can detect **two hands** (`model_complexity=0` guarantees real-time performance on the Raspberry Pi):
 
 ```python
 hands = mp_hands.Hands(
@@ -165,7 +171,7 @@ hands = mp_hands.Hands(
 )
 ```
 
-在游戏主循环中，每帧把镜像后的 RGB 帧送入模型，得到每只手的 21 个归一化关键点 `hand_landmarks` 与左右手标签 `handedness`：
+In the main game loop, each frame the mirrored RGB frame is fed into the model, yielding 21 normalized keypoints `hand_landmarks` and the left/right hand label `handedness` for each hand:
 
 ```python
 if frame is not None and camera_available:
@@ -183,18 +189,18 @@ if frame is not None and camera_available:
             finger_states = get_finger_states(hand_landmarks, is_left)
 ```
 
-关键点索引约定（MediaPipe Hands）：
+Keypoint index convention (MediaPipe Hands):
 
-- `0` 手腕；`1/5/9/13/17` 五指掌指关节（MCP）；`2/6/10/14/18` PIP（近端指间关节）；`3/7/11/15/19` DIP（远端指间关节）；`4/8/12/16/20` 指尖。
-- 拇指用 `3`（IP 指间关节）↔`4`（指尖）的 **x** 方向判断；其余手指用指尖与 PIP（点 `6/10/14/18`）的 **y** 方向判断。
+- `0` wrist; `1/5/9/13/17` the five fingers' MCP (metacarpophalangeal) joints; `2/6/10/14/18` PIP (proximal interphalangeal) joints; `3/7/11/15/19` DIP (distal interphalangeal) joints; `4/8/12/16/20` fingertips.
+- The thumb uses the **x** direction of `3` (IP interphalangeal joint) ↔ `4` (fingertip) to judge; the other fingers use the **y** direction of the fingertip vs. the PIP (point `6/10/14/18`).
 
-### 2. 镜像与坐标归一化
+### 2. Mirroring and coordinate normalization
 
-摄像头帧先做水平镜像 `cv2.flip(frame, 1)`，形成"照镜子"的自然交互；MediaPipe 输出的关键点坐标为相对图像的归一化值 `[0,1]`，后续用于光标与手势判定时再按屏幕分辨率放大。
+The camera frame is first horizontally mirrored `cv2.flip(frame, 1)` to form natural "mirror" interaction; the keypoint coordinates output by MediaPipe are normalized values `[0,1]` relative to the image, and are scaled up by the screen resolution later when used for the cursor and gesture detection.
 
-### 3. 手势 ①：手部中心 → 屏幕光标
+### 3. Gesture ①: Hand center → screen cursor
 
-取手掌区域的 5 个参考点（手腕 + 四个 MCP）求平均，作为"手部中心"：
+Take the 5 reference points of the palm region (wrist + four MCPs) and average them as the "hand center":
 
 ```python
 def get_hand_center(hand_landmarks):
@@ -204,7 +210,7 @@ def get_hand_center(hand_landmarks):
     return x, y
 ```
 
-将中心相对屏幕中心的偏移量归一化到 `[-1,1]`，再乘以灵敏度系数 `MOUSE_SCALE=5.0` 映射到全屏坐标，并做**指数平滑**（平滑系数 0.55，兼顾跟手速度与抗抖动）：
+Normalize the center's offset from the screen center to `[-1,1]`, then multiply by the sensitivity coefficient `MOUSE_SCALE=5.0` to map to full-screen coordinates, and apply **exponential smoothing** (smoothing coefficient 0.55, balancing follow-speed and jitter resistance):
 
 ```python
 if idx == 0:
@@ -216,21 +222,21 @@ if idx == 0:
     screen_y = SCREEN_HEIGHT // 2 + offset_y * SCREEN_HEIGHT * MOUSE_SCALE / 2
     screen_x = max(margin, min(SCREEN_WIDTH - margin, screen_x))
     screen_y = max(margin, min(SCREEN_HEIGHT - margin, screen_y))
-    mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55   # 低通平滑
+    mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55   # low-pass smoothing
     mouse_y = mouse_y * (1 - 0.55) + screen_y * 0.55
 ```
 
-> `MOUSE_SCALE=5.0` 意味着手掌只需在画面内移动约 **1/5** 范围即可横扫整屏，适合站立远距离游玩；可按手感下调。
+> `MOUSE_SCALE=5.0` means the palm only needs to move about **1/5** of the frame range to sweep across the entire screen, suitable for standing and playing at a distance; it can be lowered for a better feel.
 
-#### 单手优先：仅第一只手控制光标
+#### Single-hand priority: only the first hand controls the cursor
 
-主循环用 `enumerate(...)` 遍历检测到的双手，但**只有索引 `idx == 0` 的那只手**参与光标映射与握拳判定：
+The main loop uses `enumerate(...)` to iterate over the detected two hands, but **only the hand with index `idx == 0`** participates in cursor mapping and fist detection:
 
 ```python
 if idx == 0:
     hx, hy = get_hand_center(hand_landmarks)
     ...
-    mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55   # 低通平滑
+    mouse_x = mouse_x * (1 - 0.55) + screen_x * 0.55   # low-pass smoothing
     mouse_y = mouse_y * (1 - 0.55) + screen_y * 0.55
 
     if is_fist(finger_states, is_left):
@@ -242,55 +248,55 @@ if idx == 0:
         is_fisting = False
 ```
 
-也就是说：
+That is to say:
 
-- 第一只被 MediaPipe 检出的手 → 驱动**屏幕光标移动** + 触发**握拳点击**；
-- 第二只手（若存在）→ 仅提供 `finger_states` 用于**音符弹奏**，不影响光标。
+- The first hand detected by MediaPipe → drives **screen cursor movement** + triggers **fist click**;
+- The second hand (if present) → only provides `finger_states` for **note playing**, does not affect the cursor.
 
-这样设计的好处是：游玩时一只手悬停在菜单附近也不会"抢走"光标，另一只手可专心弹奏；代价是光标始终跟随先被检测到的那只手，若换手顺序变化可能出现光标短暂跳变。
+The benefit of this design is: while playing, a hand hovering near the menu won't "steal" the cursor, and the other hand can focus on playing; the cost is that the cursor always follows the first-detected hand, and if the hand order changes, the cursor may briefly jump.
 
-#### 光标状态机（`Cursor` 类）
+#### Cursor state machine (`Cursor` class)
 
-主循环每帧把 `(mouse_x, mouse_y, is_fisting)` 喂给 `Cursor.update()`，`Cursor` 在此基础上维护一套**点击状态机**，与第 5 节的"握拳迟滞"配合实现稳定点击：
+Each frame the main loop feeds `(mouse_x, mouse_y, is_fisting)` into `Cursor.update()`. Based on this, `Cursor` maintains a **click state machine**, working with the "fist hysteresis" in Section 5 to achieve stable clicks:
 
-| 字段 | 含义 |
+| Field | Meaning |
 | --- | --- |
-| `click_hold_frames` | 当前连续握拳帧数，越界到 `CLICK_HOLD_THRESHOLD=10` 时判定为一次有效点击 |
-| `click_progress` | `click_hold_frames / CLICK_HOLD_THRESHOLD`，取值 `[0,1]`，用于绘制**环形倒计时进度条** |
-| `click_available` | 握拳满 10 帧后置 `True`，表示"可点击"；菜单系统通过 `is_click_active()` 读取 |
-| `click_triggered` | 该次点击是否已被菜单消费（`consume_click()` 置位），**保证一次握拳只触发一次点击** |
-| `reset_timer = 8` | 触发点击后进入 8 帧冷却，期间绘制**发光脉冲**反馈，随后复位 |
+| `click_hold_frames` | Current consecutive fist frames; when it reaches `CLICK_HOLD_THRESHOLD=10`, it is judged as one valid click |
+| `click_progress` | `click_hold_frames / CLICK_HOLD_THRESHOLD`, value `[0,1]`, used to draw the **ring countdown progress bar** |
+| `click_available` | After holding fist for 10 frames, set to `True`, meaning "clickable"; the menu system reads it via `is_click_active()` |
+| `click_triggered` | Whether this click has been consumed by the menu (`consume_click()` sets it), **ensuring one fist triggers only one click** |
+| `reset_timer = 8` | After triggering a click, enter an 8-frame cooldown, during which a **glowing pulse** feedback is drawn, then reset |
 
-状态流转（见 `game.py` `Cursor.update`）：
+State transition (see `game.py` `Cursor.update`):
 
 ```
-握拳开始 → click_hold_frames 累加、click_progress 递增（画面画环形进度）
-   └─ 满 10 帧 → click_available = True、进入 8 帧 reset_timer（发光脉冲）
-        └─ 菜单 is_click_active() 命中 → consume_click() 消费，click_triggered=True
-松拳   → click_progress 每帧衰减 0.03，恢复初始
+Fist starts → click_hold_frames accumulates, click_progress increases (ring progress drawn on screen)
+   └─ Reaches 10 frames → click_available = True, enter 8-frame reset_timer (glowing pulse)
+        └─ Menu is_click_active() hit → consume_click() consumes, click_triggered=True
+Release fist → click_progress decays 0.03 per frame, returns to initial
 ```
 
-绘制表现（`Cursor.draw`）：
+Drawing performance (`Cursor.draw`):
 
-- **悬停 / 握拳中**：以光标为圆心画出随 `click_progress` 增长的白色**环形进度条**，直观提示"还需保持握拳多久才会点击"。
-- **点击触发瞬间**：在光标中心叠加一圈白色**发光脉冲**，作为确认反馈。
+- **Hovering / fisting**: Draw a white **ring progress bar** centered on the cursor, growing with `click_progress`, intuitively hinting "how much longer to keep the fist before clicking".
+- **Click trigger moment**: Overlay a white **glowing pulse** at the cursor center as confirmation feedback.
 
-#### 光标可见性规则
+#### Cursor visibility rules
 
-光标并非全程可见，按界面状态切换（`cursor.set_visible()`）：
+The cursor is not visible throughout; it switches by interface state (`cursor.set_visible()`):
 
-| 界面 | 光标可见？ | 原因 |
+| Interface | Cursor visible? | Reason |
 | --- | --- | --- |
-| 开始 / 选曲 / 难度菜单 | ✅ 显示 | 需用手掌移动光标、握拳点选 |
-| 暂停菜单 | ✅ 显示 | 需在菜单内点选"继续/退出" |
-| 结算界面 | ✅ 显示 | 需点选"重玩/返回菜单" |
-| 游戏内（演奏中） | ❌ 隐藏 | 此阶段用"弯曲手指"弹奏，无需光标，隐藏可避免遮挡轨道 |
+| Start / song select / difficulty menu | ✅ Shown | Need to move cursor with palm, select with fist |
+| Pause menu | ✅ Shown | Need to select "Continue/Quit" within the menu |
+| Results screen | ✅ Shown | Need to select "Replay/Back to menu" |
+| In-game (playing) | ❌ Hidden | At this stage, "bend finger" is used to play, no cursor needed; hiding avoids blocking the tracks |
 
-因此：进入演奏（`start_game` / `demo`）时 `cursor.set_visible(False)`，回到任意菜单时 `cursor.set_visible(True)`。
+Therefore: when entering play (`start_game` / `demo`), `cursor.set_visible(False)`; when returning to any menu, `cursor.set_visible(True)`.
 
-### 4. 每根手指的伸展状态
+### 4. Per-finger extension state
 
-`get_finger_states` 用几何阈值给出每根手指是否"伸展"（布尔值）。由于做了镜像，判定时需注意左右手的 x 方向符号相反：
+`get_finger_states` uses geometric thresholds to give whether each finger is "extended" (boolean). Because mirroring is applied, pay attention to the opposite x-direction sign for left and right hands when judging:
 
 ```python
 def get_finger_states(hand_landmarks, is_left_hand):
@@ -310,32 +316,32 @@ def get_finger_states(hand_landmarks, is_left_hand):
         finger_states['right_pinky']  = lm[20].y < lm[18].y
 ```
 
-#### 用到的关节与判断依据
+#### Joints used and basis for judgment
 
-MediaPipe Hands 给每根手指标了 4 个关键点（拇指 3 个），由根到尖排列。本项目判断"是否伸展"时，用**指尖**与**中间关节**做比较：
+MediaPipe Hands marks 4 keypoints for each finger (3 for the thumb), arranged from root to tip. When this project judges "whether extended", it compares the **fingertip** with the **middle joint**:
 
-| 手指 | 指尖（TIP） | 比较的中段关节 | 比较方向 | 含义 |
+| Finger | Fingertip (TIP) | Middle joint compared | Compare direction | Meaning |
 | --- | --- | --- | --- | --- |
-| 食指 | `8` | `6`（**PIP** 近端指间关节） | y | 指尖在 PIP 上方（y 更小）＝伸展 |
-| 中指 | `12` | `10`（**PIP**） | y | 同上 |
-| 无名指 | `16` | `14`（**PIP**） | y | 同上 |
-| 小指 | `20` | `18`（**PIP**） | y | 同上 |
-| 拇指 | `4`（TIP） | `3`（**IP** 指间关节，拇指无 PIP） | x | 见下 |
+| Index | `8` | `6` (**PIP** proximal interphalangeal joint) | y | Fingertip above PIP (smaller y) = extended |
+| Middle | `12` | `10` (**PIP**) | y | Same as above |
+| Ring | `16` | `14` (**PIP**) | y | Same as above |
+| Pinky | `20` | `18` (**PIP**) | y | Same as above |
+| Thumb | `4` (TIP) | `3` (**IP** interphalangeal joint, thumb has no PIP) | x | See below |
 
 ![Joint_Structure](Assets/Joint_Structure.png)
 
 *Image Source: Mediapipe Documentation*
 
-- **PIP（Proximal Interphalangeal Joint，近端指间关节）**：四指的中间关节（点 `6/10/14/18`）。因为手指正常的屈伸发生在 y 方向（图像坐标系 y 轴向下），所以"向上伸"时指尖 y 小于 PIP 的 y，以此判定伸展；弯曲（按下）时指尖 y 大于 PIP 的 y。
-- **拇指特殊**：拇指是侧向开合的，没有 PIP，只有 **IP（Interphalangeal，指间关节，点 `3`）**。因此拇指不用 y、而用 **x 方向**比较指尖 `4` 与 IP `3`：做镜像后，左手 `lm[4].x > lm[3].x`、右手 `lm[4].x < lm[3].x` 表示拇指张开（伸展）。
+- **PIP (Proximal Interphalangeal Joint)**: The middle joint of the four fingers (points `6/10/14/18`). Since normal finger flexion/extension happens in the y direction (image coordinate system y-axis points down), when "extending up" the fingertip y is smaller than the PIP's y, so this judges extension; when bending (pressing) the fingertip y is larger than the PIP's y.
+- **Thumb special case**: The thumb opens/closes sideways, has no PIP, only an **IP (Interphalangeal, joint `3`)**. Therefore the thumb does not use y, but compares the fingertip `4` with the IP `3` in the **x direction**: after mirroring, left hand `lm[4].x > lm[3].x`, right hand `lm[4].x < lm[3].x` means the thumb is open (extended).
 
-> 注：第 1 节关键点索引约定中，`2/6/10/14/18` 为 PIP，`3/7/11/15/19` 实为 **DIP（远端指间关节）** 而非 PIP→DIP；本游戏只用到了 PIP（`6/10/14/18`）判断四指伸展、用 IP（`3`）判断拇指，并未使用 DIP。
+> Note: In Section 1's keypoint index convention, `2/6/10/14/18` are PIP, and `3/7/11/15/19` are actually **DIP (distal interphalangeal)** rather than PIP→DIP; this game only uses PIP (`6/10/14/18`) to judge the extension of the four fingers, and IP (`3`) to judge the thumb, and does not use DIP.
 
-要点：非拇指手指"向上伸"时指尖 `y` 小于 PIP 的 `y`（图像坐标系 y 轴向下）；拇指用左右向 `x` 判断开合。
+Key point: For non-thumb fingers "extending up", the fingertip `y` is smaller than the PIP's `y` (image coordinate system y-axis points down); the thumb uses the left-right `x` direction to judge opening/closing.
 
-### 5. 手势 ②：握拳 → 菜单点击（带迟滞去抖）
+### 5. Gesture ②: Fist → menu click (with hysteresis debounce)
 
-当一只手中**伸展的手指数 ≤ 1** 时判定为"握拳"，用作点击：
+When a hand has **≤ 1 extended finger**, it is judged as a "fist", used as a click:
 
 ```python
 def is_fist(finger_states, is_left):
@@ -347,7 +353,7 @@ def is_fist(finger_states, is_left):
     return extended_count <= 1
 ```
 
-为避免单帧抖动导致误触，主循环对握拳做了**迟滞（hysteresis）**：连续 ≥ `FIST_THRESHOLD=3` 帧都判定为握拳才置位 `is_fisting`，一旦张开立即清零：
+To avoid mis-clicks from single-frame jitter, the main loop applies **hysteresis** to the fist: only when ≥ `FIST_THRESHOLD=3` consecutive frames are judged as a fist is `is_fisting` set, and it clears immediately once opened:
 
 ```python
 if is_fist(finger_states, is_left):
@@ -359,11 +365,11 @@ else:
     is_fisting = False
 ```
 
-随后交给 `Cursor` 对象，并叠加 **8 帧点击冷却**（`is_click_active()`），鼠标移动与点击状态被送入菜单系统完成"悬停+点选"。
+It is then handed to the `Cursor` object, with an added **8-frame click cooldown** (`is_click_active()`); mouse movement and click state are fed into the menu system to complete "hover + select".
 
-### 6. 手势 ③：手指弯曲 → 音符命中
+### 6. Gesture ③: Finger bend → note hit
 
-游戏有 **10 条轨道**，每条轨道固定对应一根手指（左右手各 5 指）。映射表如下（左侧 1–5、右侧 6–10）：
+The game has **10 tracks**, each track fixedly corresponds to one finger (5 fingers per hand). The mapping table is as follows (left 1–5, right 6–10):
 
 ```python
 FINGER_MAP = {
@@ -374,7 +380,7 @@ FINGER_MAP = {
 }
 ```
 
-"弹奏"动作被建模为**手指由伸展变为弯曲的跳变**（一次"点击"）。每帧对比当前与上一帧的伸展状态，凡是"上一帧伸、这一帧弯"的手指即视为被按下，转换为对应的轨道编号：
+The "play" action is modeled as the **jump of a finger changing from extended to bent** (one "click"). Each frame compares the current and previous frame's extension states; any finger that was "extended last frame, bent this frame" is treated as pressed, converting it to the corresponding track number:
 
 ```python
 pressed_fingers = []
@@ -393,11 +399,11 @@ for finger_name in pressed_fingers:
 active_fingers = pressed_numbers
 ```
 
-> 因此游玩时：**当某个音符滑入屏幕底部的判定线（hit line）时，快速弯曲对应手指**即可触发该音符。连续弯曲同一手指可连击不同音符。
+> Therefore while playing: **when a note slides into the judgment line at the bottom of the screen (hit line), quickly bend the corresponding finger** to trigger that note. Continuously bending the same finger can hit consecutive notes in a combo.
 
-### 7. 命中判定与评级
+### 7. Hit detection and rating
 
-音符持续下落，当它的**中心**进入判定带 `[hit_line - 35, hit_line + 35]` 且对应轨道手指被按下时，按音符中心与判定线中心的偏差评级：
+Notes keep falling; when its **center** enters the judgment band `[hit_line - 35, hit_line + 35]` and the corresponding track finger is pressed, the rating is given by the deviation between the note center and the judgment line center:
 
 ```python
 hit_zone_top = self.hit_line - self.hit_zone_height
@@ -427,175 +433,175 @@ for note in self.notes:
                 ...   # GOOD
 ```
 
-判定带高度 `hit_zone_height = 35`（判定线 `hit_line = height - 90` 上下各 35px，共 70px），三级阈值按判定带高度的比例划分：**PERFECT < 15%（10.5px）、GREAT < 35%（24.5px）、GOOD < 60%（42px）**。两次成功命中之间还有 **3 帧冷却**（`hit_cooldown`），防止一次手指抖动吞掉相邻音符。音符越过判定带底部 20px 仍未命中则计 `MISS` 并清空连击。
+The judgment band height `hit_zone_height = 35` (judgment line `hit_line = height - 90`, 35px above and below, total 70px). The three thresholds are divided by the ratio of the judgment band height: **PERFECT < 15% (10.5px), GREAT < 35% (24.5px), GOOD < 60% (42px)**. There is also a **3-frame cooldown** (`hit_cooldown`) between two successful hits, preventing one finger jitter from swallowing adjacent notes. If a note crosses 20px below the bottom of the judgment band and is still not hit, it counts as `MISS` and clears the combo.
 
-### 8. 鲁棒性处理小结
+### 8. Robustness handling summary
 
-- **CPU 推理**：`MEDIAPIPE_DISABLE_GPU=1`，适配无 GPU 设备。
-- **指数平滑**：光标坐标低通滤波（系数 0.55），抑制关键点抖动。
-- **冷却**：点击后 8 帧冷却 + 命中后 3 帧冷却，杜绝误触。
-- **缺手暂停**：非演示模式下若连续多帧未检测到手，自动暂停并提示，避免"幽灵操作"。
-- **光标防抖**：`Cursor` 引入 1px 死区（仅当移动超过死区才更新目标坐标），平滑系数 0.55 既加快光标跟手速度，又抑制微小抖动。
-- **结果缓存**：`get_finger_states` 对相同关键点做 `FINGER_STATE_CACHE` 缓存，降低重复计算。
-- **调试叠加**：检测到手时在预览画面用 `mp_drawing` 画出 21 点骨架，便于校准。
+- **CPU inference**: `MEDIAPIPE_DISABLE_GPU=1`, adapted for GPU-less devices.
+- **Exponential smoothing**: Low-pass filtering of cursor coordinates (coefficient 0.55), suppressing keypoint jitter.
+- **Cooldown**: 8-frame cooldown after click + 3-frame cooldown after hit, eliminating mis-clicks.
+- **Missing-hand pause**: In non-demo mode, if no hand is detected for several consecutive frames, auto-pause and prompt, avoiding "ghost operations".
+- **Cursor debounce**: `Cursor` introduces a 1px dead zone (target coordinates only update when movement exceeds the dead zone), and the smoothing coefficient 0.55 both speeds up cursor follow and suppresses small jitter.
+- **Result caching**: `get_finger_states` caches identical keypoints via `FINGER_STATE_CACHE`, reducing repeated computation.
+- **Debug overlay**: When a hand is detected, `mp_drawing` draws the 21-point skeleton in the preview for easy calibration.
 
 ---
 
-## 🎮 游戏逻辑设计
+## 🎮 Game Logic Design
 
-![游戏状态流转](Assets/diagrams/game_state_flow.png)
+![Game state flow](Assets/diagrams/game_state_flow.png)
 
 ```
-开始菜单
-  ├─ Start Game ──► 选择曲目 ──► 选择难度 ──► 游戏中（手动演奏）──┐
-  └─ Auto Demo  ──► 选择曲目 ───────────────► 游戏中（自动演奏）──┤
-                                                                  ▼
-                                                              结算界面
+Start menu
+  ├─ Start Game ──► Select song ──► Select difficulty ──► In game (manual play)──┐
+  └─ Auto Demo  ──► Select song ───────────────────────► In game (auto play) ──┤
+                                                                                ▼
+                                                                          Results screen
                        ┌──────────────────┬──────────────────┐
                        ▼                  ▼                  ▼
-              重玩·手动 → 手动演奏   重玩·Demo → 自动演奏   返回主菜单 → 开始菜单
+             Replay·Manual → Manual play  Replay·Demo → Auto play  Back to main menu → Start menu
 ```
 
-- **曲目**：内置 **7 首**——`Twinkle Twinkle Little Star`、`Happy Birthday`、`Jingle Bells`、`Farewell`（送别）、`Ode to Joy`、`Moonlight Sonata`、`Night Piano No.5`。每首在 `PianoSheet.get_song()` 中以 `(简谱数字, 时值)` 序列定义，另配 `scale_notes` 表把简谱翻译成真实音名（如 `'1''→C5`、`'b3'→Eb4`）。
-- **音符生成**：按曲谱顺序逐个生成，间隔由该音符时值决定——`spawn_delay = max(1, int(20 × duration / 0.2))` 帧，同屏音符上限 30 个；**演示模式**改为固定每 6 帧生成一个，节奏明显更快。
-- **难度**：`Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×`，**只影响音符下落速度**（`speed = 5.5 × (屏高/720) × speed_multiplier`），不改变生成间隔；演示模式固定按 `0.8×` 演奏，跳过难度选择。
-- **轨道分配**：每个音符随机落到 1–10 号轨道（`random.randint(1, 10)`），与它弹什么音无关；轨道底部标签固定为 `C4…E5`，而音符上显示的是它自己的真实音名（`actual_note`，如 `C#5`）。全部音符下落完且屏幕清空后，等待一小段缓冲才判定曲目结束并进入结算。
-- **音频**：`get_note_sound()` 按音名在 `Piano/` 采样目录中查找对应 `tone(N).wav`，`AudioManager` 用 64 个混音通道保证长音不被截断；暂停或重开时 `stop_all()` 清空所有通道。
-- **计分**：`score`（含连击加成）、`combo` / `max_combo`、`perfect/great/good/miss` 计数、`accuracy` 准确率，结算界面展示评级（详见下方「🏆 计分与评级」章节）。
-- **控制**：通过光标触发各个菜单中的按键实现控制，演奏曲目时检测不到手自动暂停；必要时可通过键盘控制（见前面的键盘部分说明）。结算界面可「重玩」或「返回主菜单」：**手动演奏**结算后的「重玩」沿用当前曲目与难度回到手动演奏；**自动演示**结算后的「重玩」回到自动演奏（跳过难度选择）；两者均可「返回主菜单」。
+- **Songs**: **7** built-in — `Twinkle Twinkle Little Star`, `Happy Birthday`, `Jingle Bells`, `Farewell`, `Ode to Joy`, `Moonlight Sonata`, `Night Piano No.5`. Each is defined in `PianoSheet.get_song()` as a `(numbered-notation digit, duration)` sequence, with a `scale_notes` table translating the numbered notation into real note names (e.g. `'1'→C5`, `'b3'→Eb4`).
+- **Note generation**: Generated one by one in score order; the interval is determined by the note's duration — `spawn_delay = max(1, int(20 × duration / 0.2))` frames, with a max of 30 notes on screen; the **demo mode** instead generates one every fixed 6 frames, noticeably faster rhythm.
+- **Difficulty**: `Easy=0.5×` / `Normal=0.8×` / `Hard=1.3×`, **only affects note fall speed** (`speed = 5.5 × (screen height/720) × speed_multiplier`), not the generation interval; demo mode is fixed at `0.8×` and skips difficulty selection.
+- **Track assignment**: Each note randomly falls into track 1–10 (`random.randint(1, 10)`), unrelated to which note it plays; the bottom label of the track is fixed as `C4…E5`, while the note shows its own real note name (`actual_note`, e.g. `C#5`). After all notes have fallen and the screen is cleared, wait a short buffer before judging the song as finished and entering the results.
+- **Audio**: `get_note_sound()` looks up the corresponding `tone(N).wav` in the `Piano/` sample directory by note name; `AudioManager` uses 64 mixing channels to ensure long notes are not cut off; `stop_all()` clears all channels when paused or restarted.
+- **Scoring**: `score` (with combo bonus), `combo` / `max_combo`, `perfect/great/good/miss` counts, `accuracy`, the results screen shows the rating (see the "🏆 Scoring and Rating" section below for details).
+- **Control**: Controlled by triggering buttons in each menu via the cursor; auto-pause when no hand is detected during song play; keyboard control is available when necessary (see the keyboard section above). The results screen can "Replay" or "Back to main menu": after a **manual play** result, "Replay" uses the current song and difficulty to return to manual play; after an **auto demo** result, "Replay" returns to auto play (skipping difficulty selection); both can "Back to main menu".
 
-## 🔊 音频播放实现（核心）
+## 🔊 Audio Playback Implementation (Core)
 
-游戏里每一个钢琴音都来自 88 键真实采样，按「判定命中 → 取采样 → 解码缓存 → 算音量 → 通道播放」的链路实时合成，声音与画面命中特效同源同步触发。完整管线：
+Every piano sound in the game comes from 88-key real samples, synthesized in real time through the chain "judgment hit → get sample → decode cache → compute volume → channel play", with sound and on-screen hit effects triggered synchronously from the same source. The complete pipeline:
 
 ```
-音符进入判定区（手动 PERFECT/GREAT/GOOD 或 Demo AUTO）
+Note enters judgment zone (manual PERFECT/GREAT/GOOD or Demo AUTO)
    → get_note_sound(actual_note, duration)
-        → get_sample_file_for_note() : 音名 → tone(idx+1).wav
-        → load_piano_sample()        : pygame.mixer.Sound 解码 + SAMPLE_SOUND_CACHE 缓存
-        → 计算 final_volume（力度 / 时值 / 高音补偿）
-        → AudioManager.play_sound()  : 找空闲通道 → channel.play()
-                                        → 扬声器
+        → get_sample_file_for_note() : note name → tone(idx+1).wav
+        → load_piano_sample()        : pygame.mixer.Sound decode + SAMPLE_SOUND_CACHE cache
+        → compute final_volume (velocity / duration / high-note compensation)
+        → AudioManager.play_sound()  : find idle channel → channel.play()
+                                        → speaker
 ```
 
-![音频播放管线](Assets/diagrams/audio_pipeline.png)
+![Audio playback pipeline](Assets/diagrams/audio_pipeline.png)
 
-### 1. 音频引擎初始化（game.py:35）
+### 1. Audio engine initialization (game.py:35)
 
-`pygame.mixer.init(frequency=44100, size=-16, channels=1, buffer=1024)`：采样率 44.1kHz、16 位有符号、**单声道**（采样本身单声道，省内存省解码）；缓冲区 1024 帧。`pygame.mixer.set_num_channels(64)` 开 **64 个并发混音通道**，支持同一瞬间最多 64 个音叠加而不互相打断（轮指、和弦、连击时关键）。
+`pygame.mixer.init(frequency=44100, size=-16, channels=1, buffer=1024)`: sample rate 44.1kHz, 16-bit signed, **mono** (samples are mono themselves, saving memory and decoding); buffer 1024 frames. `pygame.mixer.set_num_channels(64)` opens **64 concurrent mixing channels**, supporting up to 64 sounds superimposed at the same instant without interrupting each other (key for trills, chords, and combos).
 
-### 2. 采样库与音名映射（game.py:83）
+### 2. Sample library and note name mapping (game.py:83)
 
-`SAMPLES_DIR = ~/Piano`，88 个文件 `tone(1).wav … tone(88).wav` 对应 **A0（最低）到 C8（最高）**。`NOTE_NAMES_88` 列表 + `NOTE_INDEX_LOOKUP` 字典把音名映射到索引 `0–87`，并内置 `Db→C#`、`Eb→D#` 等降号别名；`NOTE_TO_MIDI` / `MIDI_TO_NOTE` 完成音名 ↔ MIDI 编号（A0=21 … C8=108）互转。
+`SAMPLES_DIR = ~/Piano`, 88 files `tone(1).wav … tone(88).wav` correspond to **A0 (lowest) to C8 (highest)**. The `NOTE_NAMES_88` list + `NOTE_INDEX_LOOKUP` dictionary map note names to indices `0–87`, with built-in flat aliases like `Db→C#`, `Eb→D#`; `NOTE_TO_MIDI` / `MIDI_TO_NOTE` complete the note name ↔ MIDI number conversion (A0=21 … C8=108).
 
-### 3. 音名 → 具体文件（game.py:221，`get_sample_file_for_note`）
+### 3. Note name → specific file (game.py:221, `get_sample_file_for_note`)
 
-`NOTE_INDEX_LOOKUP[note]` 取索引；直接查不到时用 `parse_note_name_simple()` 解析（支持简谱 `1' 2'`、升/降号）。文件名 `tone (index + 1).wav`——列表从 0 起、文件从 1 起，故 `+1`；用 `os.path.exists` 确认存在才返回。
+`NOTE_INDEX_LOOKUP[note]` gets the index; when not found directly, use `parse_note_name_simple()` to parse (supports numbered notation `1' 2'`, sharps/flats). File name `tone (index + 1).wav` — the list starts from 0, the file starts from 1, hence `+1`; use `os.path.exists` to confirm existence before returning.
 
-### 4. 解码 + 缓存（game.py:297，`load_piano_sample`）
+### 4. Decode + cache (game.py:297, `load_piano_sample`)
 
-`pygame.mixer.Sound(filepath)` 把 WAV 解码成可播放对象（仅进内存、**不播放**），存入 `SAMPLE_SOUND_CACHE`，键为 `音名_力度`，**上限 500 条**，超限清掉最早一半（LRU 思路），避免内存被撑爆。找不到对应采样时依次回退：同音名其它八度 → `C4` → 第一个采样，保证永远有声音可出。
+`pygame.mixer.Sound(filepath)` decodes the WAV into a playable object (only into memory, **not played**), stored in `SAMPLE_SOUND_CACHE`, keyed by `note name_velocity`, with a **cap of 500 entries**; when exceeded, the earliest half is cleared (LRU approach) to avoid memory bloat. When no corresponding sample is found, it falls back in order: other octave of the same note name → `C4` → first sample, ensuring there is always a sound to play.
 
-### 5. 音量计算（game.py:343，`get_note_sound`）
+### 5. Volume computation (game.py:343, `get_note_sound`)
 
-- `sample_velocity = clamp(int(velocity * 16), 1, 16)`：力度分层，对应预加载时的不同力度层采样；
-- `volume_factor = 0.7 + 0.3 * min(1.0, duration / 0.3)`：时值越长越响；
-- 高音补偿：`C5+` ×1.15、`C6+` ×1.30；
-- `final_volume = min(1.0, 0.8 * volume_factor)`，`sound.set_volume()` 只影响**本次播放**，不污染缓存里的原始采样。
+- `sample_velocity = clamp(int(velocity * 16), 1, 16)`: velocity layering, corresponding to different velocity-layer samples preloaded;
+- `volume_factor = 0.7 + 0.3 * min(1.0, duration / 0.3)`: longer duration = louder;
+- High-note compensation: `C5+` ×1.15, `C6+` ×1.30;
+- `final_volume = min(1.0, 0.8 * volume_factor)`, `sound.set_volume()` only affects **this playback**, not polluting the original sample in the cache.
 
-### 6. 通道分配与播放（game.py:145，`AudioManager`）
+### 6. Channel allocation and playback (game.py:145, `AudioManager`)
 
-`play_sound()` 加线程锁后：先清掉已播完的通道（`_cleanup_stopped_channels`），再遍历 64 通道找一个 `get_busy() == False` 的空闲通道；全忙则 `stop()` 最老的音腾位置（最新音优先）。`channel.play(sound)` **真正开始出声**，并把 `(音名, 起始时间, sound, 通道)` 登记到 `playing_notes` 以便追踪/抢占。`stop_all()` 在切歌 / 暂停 / 退出 / 重开时停掉所有通道，清掉残留尾音。
+`play_sound()` adds a thread lock and then: first clears finished channels (`_cleanup_stopped_channels`), then iterates over 64 channels to find an idle one with `get_busy() == False`; if all are busy, `stop()` the oldest sound to make room (newest sound priority). `channel.play(sound)` **truly starts sounding**, and registers `(note name, start time, sound, channel)` into `playing_notes` for tracking/preemption. `stop_all()` stops all channels when switching songs / pausing / quitting / restarting, clearing residual tails.
 
-### 7. 触发时机（game.py:2691）
+### 7. Trigger timing (game.py:2691)
 
-音符中心进入判定区且被命中时发声：
+Sound is produced when the note center enters the judgment zone and is hit:
 
-- **Demo（自动演示）**：进判定区即 `get_note_sound()` 并记 PERFECT；
-- **手动模式**：对应轨道有手指且命中冷却为 0，按距离判 PERFECT / GREAT / GOOD，**每一档各调一次 `get_note_sound`**；
-- **MISS**：不发声，仅记失误、断连击。
+- **Demo (auto play)**: Entering the judgment zone immediately calls `get_note_sound()` and records PERFECT;
+- **Manual mode**: The corresponding track has a finger and the hit cooldown is 0; judges PERFECT / GREAT / GOOD by distance, and **calls `get_note_sound` once per rating tier**;
+- **MISS**: No sound, only records the miss and breaks the combo.
 
-### 8. 预加载（game.py:1030，`preload_all_samples`）
+### 8. Preload (game.py:1030, `preload_all_samples`)
 
-启动 Loading 期间把全部 88 采样 + 多个力度层（vel 4/8/12/16）解码进缓存，使正式演奏基本命中缓存、直接播放，**不会因临时解码 WAV 而卡帧**。
+During the Loading startup, all 88 samples + multiple velocity layers (vel 4/8/12/16) are decoded into the cache, so the actual play almost entirely hits the cache and plays directly, **without frame stutter from temporarily decoding WAV**.
 
 ---
 
-## 🏆 计分与评级
+## 🏆 Scoring and Rating
 
-### 1. 命中判定与单次得分
+### 1. Hit detection and single hit score
 
-当音符**中心**进入判定带 `[hit_line - 35, hit_line + 35]`（判定线 `hit_line = 屏幕高度 - 90`，判定带上下各 35px）且对应轨道手指被按下时，按**音符中心与判定线的像素距离 `distance`** 评级并结算分数：
+When the note **center** enters the judgment band `[hit_line - 35, hit_line + 35]` (judgment line `hit_line = screen height - 90`, 35px above and below) and the corresponding track finger is pressed, the rating is given by the **pixel distance `distance` between the note center and the judgment line** and the score is settled:
 
-| 评级 | 距离阈值 | 基础分 | 连击加成 | 提示色 |
+| Rating | Distance threshold | Base score | Combo bonus | Prompt color |
 | --- | --- | --- | --- | --- |
-| PERFECT! | `distance < 10.5px`（判定带的 15%） | 100 | `+ combo × 5` | 绿 |
-| GREAT! | `distance < 24.5px`（判定带的 35%） | 80 | `+ combo × 4` | 青 |
-| GOOD | `distance < 42px`（判定带的 60%） | 50 | `+ combo × 2` | 蓝紫 |
-| MISS | 音符越过判定带底部 20px 仍未被命中 | 0 | 连击清零 | 红 |
+| PERFECT! | `distance < 10.5px` (15% of judgment band) | 100 | `+ combo × 5` | Green |
+| GREAT! | `distance < 24.5px` (35% of judgment band) | 80 | `+ combo × 4` | Cyan |
+| GOOD | `distance < 42px` (60% of judgment band) | 50 | `+ combo × 2` | Blue-purple |
+| MISS | Note crosses 20px below the judgment band and is still not hit | 0 | Combo cleared | Red |
 
-单次得分 = **基础分 + 当前连击数 × 系数**。例如当前连击为 20 时打出 PERFECT，本次得分 = 100 + 20×5 = 200。连击越高，单次收益越高，是冲分的关键。
+Single hit score = **base score + current combo count × coefficient**. For example, when the current combo is 20 and a PERFECT is hit, this score = 100 + 20×5 = 200. The higher the combo, the higher the single-hit gain, which is the key to chasing high scores.
 
-### 2. 连击（Combo）
+### 2. Combo
 
-- 每成功命中一个音符（含 PERFECT / GREAT / GOOD），`combo` 加 1，并记录本局 `max_combo`（最高连击）。
-- 出现 **MISS**（音符漏掉 / 越过判定带）时 `combo` 立即归零。
-- 连击数直接参与得分公式的加成项，因此保持长连击能放大总分。
+- Each successfully hit note (including PERFECT / GREAT / GOOD), `combo` increases by 1, and records the session's `max_combo` (highest combo).
+- When a **MISS** occurs (note missed / crossed the judgment band), `combo` immediately resets to zero.
+- The combo directly participates in the bonus term of the score formula, so maintaining a long combo amplifies the total score.
 
-### 3. 准确率（Accuracy）
+### 3. Accuracy
 
 ```text
 total_notes  = perfect_count + great_count + good_count + miss_count
 accuracy     = (perfect_count + great_count + good_count) / total_notes × 100%
 ```
 
-PERFECT、GREAT、GOOD 均计入命中，只有 MISS 不计入。
+PERFECT, GREAT, and GOOD all count as hits; only MISS does not count.
 
-### 4. 结算评级（Rating）
+### 4. Results rating (Rating)
 
-![判定评级分支决策树](Assets/diagrams/rating_decision_tree.png)
+![Judgment rating branch decision tree](Assets/diagrams/rating_decision_tree.png)
 
-曲目结束（或演示结束）调用 `calculate_rating()`，依据 **漏失率 `miss_rate`** 与 **PERFECT 率 `perfect_rate`** 给出最终评级：
+When the song ends (or the demo ends), `calculate_rating()` is called, giving the final rating based on the **miss rate `miss_rate`** and the **PERFECT rate `perfect_rate`**:
 
 ```text
 miss_rate    = miss_count    / total_notes
 perfect_rate = perfect_count / total_notes
 ```
 
-| 评级 | 条件 | 含义 |
+| Rating | Condition | Meaning |
 | --- | --- | --- |
-| **SSS+** | `miss_rate == 0` 且 `perfect_rate ≥ 0.95` | Perfect Full Combo! |
-| **SSS** | `miss_rate == 0` 且 `perfect_rate ≥ 0.85` | Excellent Full Combo! |
-| **SS** | `miss_rate == 0` 且 `perfect_rate ≥ 0.70` | Great Full Combo! |
-| **S** | `miss_rate == 0`（其余） | Good Full Combo! |
+| **SSS+** | `miss_rate == 0` and `perfect_rate ≥ 0.95` | Perfect Full Combo! |
+| **SSS** | `miss_rate == 0` and `perfect_rate ≥ 0.85` | Excellent Full Combo! |
+| **SS** | `miss_rate == 0` and `perfect_rate ≥ 0.70` | Great Full Combo! |
+| **S** | `miss_rate == 0` (the rest) | Good Full Combo! |
 | **A** | `miss_rate ≤ 0.10` | Great! |
 | **B** | `miss_rate ≤ 0.15` | Good! |
 | **C** | `miss_rate ≤ 0.25` | Fair |
 | **D** | `miss_rate ≤ 0.40` | Needs Practice |
 | **F** | `miss_rate > 0.40` | Keep Trying! |
 
-> 规则要点：**全连击（无 MISS）**时按 PERFECT 率细分（SSS+ / SSS / SS / S）；一旦漏失，仅按漏失率由高到低评级（A → F）。结算界面（`Assets/Song_Completed_Menu.png`）会同时展示分数、最大连击、`Perfect/Great/Good/Miss` 计数、准确率与评级；演示模式结束则显示独立的 `Demo Complete!` 界面（`Assets/Demo_Completed_Menu.png`）。
+> Key rules: When there is a **full combo (no MISS)**, it is subdivided by the PERFECT rate (SSS+ / SSS / SS / S); once a miss occurs, it is only rated from high to low by the miss rate (A → F). The results screen (`Assets/Song_Completed_Menu.png`) shows the score, max combo, `Perfect/Great/Good/Miss` counts, accuracy, and rating; the demo mode end shows a separate `Demo Complete!` screen (`Assets/Demo_Completed_Menu.png`).
 
 ---
 
-## 🖼️ 游戏画面设计
+## 🖼️ Game Screen Design
 
-游戏为**全屏**布局。整个游玩过程中（菜单、选曲、演奏、暂停、结算）**摄像头画面始终显示**在界面右下角的预览窗口（含 21 点手部骨架叠加，便于校准）。
+The game is **full screen** layout. Throughout the entire play process (menu, song selection, playing, pause, results), the **camera image is always shown** in the preview window at the bottom-right of the interface (with 21-point hand skeleton overlay, for easy calibration).
 
-**侧边栏仅在曲目演奏时显示**：右侧 300px 侧边栏（`Assets/In_Game_Screen.png`）只在 `in_game` 且未进入结算界面时出现，用于展示曲目名、速度、分数、Perfect/Great/Good/Miss 计数与连击等信息；在菜单、选曲、暂停、结算等其它界面，侧边栏不绘制，仅保留右下角的摄像头预览。
+**The sidebar is only shown during song play**: The right 300px sidebar (`Assets/In_Game_Screen.png`) only appears when `in_game` and not yet entering the results screen, used to display the song name, speed, score, Perfect/Great/Good/Miss counts, and combo; in other interfaces such as menu, song selection, pause, and results, the sidebar is not drawn, only the bottom-right camera preview is kept.
 
-左侧游玩区包含 10 条触发后发光的轨道 + 有动态光效的下落音符（带音名标签）+ 命中特效和粒子。
+The left play area contains 10 tracks that glow when triggered + falling notes with dynamic light effects (with note name labels) + hit effects and particles.
 
-| 画面 | 文件 | 说明 |
+| Screen | File | Description |
 | --- | --- | --- |
-| 开始菜单 | `Assets/Start_Menu.png` | 标题与"开始/演示/退出"入口，光标跟随手掌移动 |
-| 选曲菜单 | `Assets/Select_Song_Menu.png` | 7 首曲目列表，握拳点选 |
-| 难度菜单 | `Assets/Select_Difficulty_Menu.png` | Easy / Normal / Hard |
-| 游戏中 | `Assets/In_Game_Screen.png` | 下落音符（带音名）+ 轨道高亮 + 侧边栏统计 |
-| 暂停菜单 | `Assets/Pause_Menu.png` | 暂停时叠加的菜单 |
-| 演示模式 | `Assets/Demo.png` | 无手势自动演奏展示（侧边栏显示 DEMO MODE） |
-| 结算界面 | `Assets/Song_Completed_Menu.png` | 分数、四项计数、最大连击、准确率与评级；「重玩」回到手动演奏（同曲目同难度） |
-| 演示结算 | `Assets/Demo_Completed_Menu.png` | 演示结束的独立界面；「重玩」回到自动演奏 / 「Back to Menu」返回主菜单 |
+| Start menu | `Assets/Start_Menu.png` | Title and "Start/Demo/Quit" entries, cursor follows palm movement |
+| Song select menu | `Assets/Select_Song_Menu.png` | 7-song list, select with fist |
+| Difficulty menu | `Assets/Select_Difficulty_Menu.png` | Easy / Normal / Hard |
+| In game | `Assets/In_Game_Screen.png` | Falling notes (with note name) + track highlight + sidebar stats |
+| Pause menu | `Assets/Pause_Menu.png` | Menu overlaid when paused |
+| Demo mode | `Assets/Demo.png` | No-gesture auto-play display (sidebar shows DEMO MODE) |
+| Results screen | `Assets/Song_Completed_Menu.png` | Score, four counts, max combo, accuracy, and rating; "Replay" returns to manual play (same song, same difficulty) |
+| Demo results | `Assets/Demo_Completed_Menu.png` | Separate interface when demo ends; "Replay" returns to auto play / "Back to Menu" returns to main menu |
 
 ![Select Song](Assets/Select_Song_Menu.png)
 ![Select Difficulty](Assets/Select_Difficulty_Menu.png)
@@ -607,15 +613,15 @@ perfect_rate = perfect_count / total_notes
 
 ---
 
-## 📁 目录结构
+## 📁 Directory Structure
 
-![项目目录结构](Assets/diagrams/project_structure.png)
+![Project directory structure](Assets/diagrams/project_structure.png)
 
 ```
 piano_game/
-├── game.py                 # 主程序：手势识别 + 游戏逻辑 + 渲染
-├── Piano/                  # 88 个钢琴采样 tone(1).wav ~ tone(88).wav（Git LFS）
-├── Assets/                 # 游戏画面截图与流程图（README 用）
+├── game.py                 # Main program: gesture recognition + game logic + rendering
+├── Piano/                  # 88 piano samples tone(1).wav ~ tone(88).wav (Git LFS)
+├── Assets/                 # Game screen screenshots and flowcharts (for README)
 │   ├── Start_Menu.png
 │   ├── Select_Song_Menu.png
 │   ├── Select_Difficulty_Menu.png
@@ -624,15 +630,15 @@ piano_game/
 │   ├── Demo.png
 │   ├── Demo_Completed_Menu.png
 │   ├── Song_Completed_Menu.png
-│   ├── bg_song.jpg               # 游戏背景图（仓库内，不联网加载）
+│   ├── bg_song.jpg               # Game background image (in repo, no network loading)
 │   ├── Joint_Structure.png
-│   └── diagrams/           # 技术文档流程图
-│       ├── gesture_pipeline.png        # 手势识别数据处理流水线
-│       ├── game_state_flow.png         # 游戏状态流转图
-│       ├── audio_pipeline.png            # 音频播放管线图解（采样→通道→扬声器）
-│       ├── cache_perf_transparent.png    # 缓存与性能优化流程图（大字、抠图、立体感）
-│       ├── rating_decision_tree.png    # 判定评级分支决策树
-│       └── project_structure.png       # 项目目录结构
+│   └── diagrams/           # Technical documentation flowcharts
+│       ├── gesture_pipeline.png        # Gesture recognition data processing pipeline
+│       ├── game_state_flow.png         # Game state flow diagram
+│       ├── audio_pipeline.png            # Audio playback pipeline diagram (sample→channel→speaker)
+│       ├── cache_perf_transparent.png    # Cache and performance optimization flowchart (large text, cutout, 3D feel)
+│       ├── rating_decision_tree.png    # Judgment rating branch decision tree
+│       └── project_structure.png       # Project directory structure
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -640,92 +646,92 @@ piano_game/
 
 ---
 
-## 💾 缓存与性能优化
+## 💾 Cache and Performance Optimization
 
-程序用「**缓存 + 启动预载 + 资源池**」三类手段做性能优化，核心目标只有一个：**让演奏热路径（每帧）只做 O(1) 查找与轻量计算**，把昂贵的读盘、解码、重绘都前置到启动阶段或复用缓存，从而保证稳定帧率与音画同步。
+The program uses three types of means — "**cache + startup preload + resource pool**" — for performance optimization. The core goal is only one: **make the play hot path (per frame) only do O(1) lookups and lightweight computation**, moving expensive disk reads, decoding, and redrawing to the startup phase or reusing the cache, thereby ensuring stable frame rate and audio-visual sync.
 
-![缓存与性能优化](Assets/diagrams/cache_perf_transparent.png)
+![Cache and performance optimization](Assets/diagrams/cache_perf_transparent.png)
 
-### 1. 背景图（仓库内 `Assets/bg_song.jpg`，不联网）
+### 1. Background image (in-repo `Assets/bg_song.jpg`, no network)
 
-- 背景图 `Assets/bg_song.jpg`（1920×1280）**已提交进仓库**，**所有界面共用同一张**；运行时直接读取，不再联网下载，也不再生成 `bg_cache/` 缓存目录。
-- 若该文件缺失，自动回退到暖色渐变背景（`create_fallback_bg`，见 `load_bg_images`），保证任何环境都能启动。
+- The background image `Assets/bg_song.jpg` (1920×1280) **has been committed to the repo**, **all interfaces share the same one**; at runtime it is read directly, no network download, and no `bg_cache/` cache directory is generated.
+- If this file is missing, it automatically falls back to a warm gradient background (`create_fallback_bg`, see `load_bg_images`), ensuring startup in any environment.
 
-### 2. 运行时内存缓存（不落盘，进程退出即清空）
+### 2. Runtime memory cache (not persisted to disk, cleared when process exits)
 
-**(a) 音频采样缓存 `SAMPLE_SOUND_CACHE`**（定义 game.py:138；写入 `load_piano_sample` game.py:297）
+**(a) Audio sample cache `SAMPLE_SOUND_CACHE`** (defined game.py:138; written in `load_piano_sample` game.py:297)
 
-把 `~/Piano` 下已解码的 `pygame.mixer.Sound` 对象按 **`音符名_力度`** 缓存（同一音名按力度 vel 4/8/12/16 分不同条目，对应真实钢琴不同触键力度采样），**上限 500 条**，超过则清掉最早一半（LRU）。查找命中即返回、未命中才读盘解码并写回：
+Cache the decoded `pygame.mixer.Sound` objects under `~/Piano` by **`note name_velocity`** (the same note name is split into different entries by velocity vel 4/8/12/16, corresponding to real piano samples at different touch velocities), **capped at 500 entries**, clearing the earliest half when exceeded (LRU). A cache hit returns immediately; a miss reads, decodes, and writes back:
 
 ```
-get_note_sound(音名, 力度)
+get_note_sound(note name, velocity)
    └─ load_piano_sample()
-        ├─ 命中 SAMPLE_SOUND_CACHE[音名_力度] ? → 直接返回 Sound（不读盘、不解码，微秒级）
-        └─ 未命中 → 读盘 pygame.mixer.Sound() 解码 → 写入缓存 → 返回
+        ├─ Hit SAMPLE_SOUND_CACHE[note name_velocity] ? → Return Sound directly (no disk read, no decode, microseconds)
+        └─ Miss → Read disk pygame.mixer.Sound() decode → Write to cache → Return
 ```
 
-找不到对应采样时自动回退到同音名其它八度 / `C4` / 第一个采样，保证首发也能出声并补入缓存。
+When no corresponding sample is found, it automatically falls back to another octave of the same note name / `C4` / first sample, ensuring the first play also sounds and is added to the cache.
 
-**(b) 渲染结果缓存**（避免每帧重算）
+**(b) Render result cache** (avoid recomputing every frame)
 
-- `BG_GRADIENT_CACHE` / `ROUNDED_RECT_CACHE` / `PRERENDERED_TEXTS` / `FINGER_STATE_CACHE` / `glow_cache` / `bar_fill_cache`：分别缓存渐变背景、圆角矩形、预渲染文字、手指状态、发光与进度条等高频渲染结果；
-- `cached_game_bg` / `cached_game_bg_key`、`hitbox_cache` / `hitbox_cache_key`：按 key 复用整张游戏背景与命中框 Surface，避免每帧重绘。
+- `BG_GRADIENT_CACHE` / `ROUNDED_RECT_CACHE` / `PRERENDERED_TEXTS` / `FINGER_STATE_CACHE` / `glow_cache` / `bar_fill_cache`: respectively cache the gradient background, rounded rectangles, pre-rendered text, finger states, glow, and progress bars and other high-frequency render results;
+- `cached_game_bg` / `cached_game_bg_key`, `hitbox_cache` / `hitbox_cache_key`: reuse the entire game background and hitbox Surface by key, avoiding redrawing every frame.
 
-这些缓存把「逐帧重算」变成「首次计算后查表」，是主循环稳定 60fps 的关键。
+These caches turn "per-frame recompute" into "lookup after first computation", which is the key to a stable 60fps main loop.
 
-### 3. 启动预加载（以空间换时间）
+### 3. Startup preload (trade space for time)
 
-- **采样预加载** `preload_all_samples`（game.py:1030）：启动 Loading 期间就把全部 88 采样 + 多力度层（vel 4/8/12/16）一次性解码进 `SAMPLE_SOUND_CACHE`。正式演奏阶段**几乎 100% 命中缓存、直接返回 Sound**，把「启动时的 Loading 等待」换成「运行时稳定帧率」。
-- 渲染资源（渐变 / 圆角 / 预渲染文字等）也在首次使用前计算并缓存。
-- **跨曲复用**：`SAMPLE_SOUND_CACHE` **不随切歌 / 重玩清空**（只有 `AudioManager.stop_all()` 清播放通道，不清缓存），整场只需付一次解码成本。
+- **Sample preload** `preload_all_samples` (game.py:1030): During the startup Loading, all 88 samples + multiple velocity layers (vel 4/8/12/16) are decoded into `SAMPLE_SOUND_CACHE` at once. The actual play phase **almost 100% hits the cache and returns Sound directly**, trading "Loading wait at startup" for "stable frame rate at runtime".
+- Render resources (gradient / rounded corners / pre-rendered text, etc.) are also computed and cached before first use.
+- **Cross-song reuse**: `SAMPLE_SOUND_CACHE` is **not cleared on song switch / replay** (only `AudioManager.stop_all()` clears playback channels, not the cache), so the whole session only pays the decode cost once.
 
-### 4. 资源池与节流
+### 4. Resource pool and throttling
 
-- **音频通道池（64 通道）**：`pygame.mixer.set_num_channels(64)`（game.py:39）+ `AudioManager`（game.py:145）。并发 64 个音不互相截断，免去动态分配/查找开销；全忙时抢占最老的音（最新优先）。
-- **命名管道摄像头流**：树莓派上用 `rpicam-vid` 命名管道常驻流式读取帧（见「摄像头数据流」节），避免每次重新打开摄像头设备。
-- **命中冷却（hit_cooldown = 3 帧）**：命中判定处（game.py:2706 等）对同一音符做去抖，避免被重复判定触发、从而重复解码/发声。
+- **Audio channel pool (64 channels)**: `pygame.mixer.set_num_channels(64)` (game.py:39) + `AudioManager` (game.py:145). 64 concurrent sounds don't cut each other off, avoiding dynamic allocation/lookup overhead; when all are busy, preempt the oldest sound (newest priority).
+- **Named pipe camera stream**: On the Raspberry Pi, use the `rpicam-vid` named pipe to continuously stream frames (see "Camera data stream" section), avoiding reopening the camera device each time.
+- **Hit cooldown (hit_cooldown = 3 frames)**: At the hit detection (game.py:2706 etc.), debounce the same note, avoiding being re-triggered by repeated detection, thus repeatedly decoding/sounding.
 
-> 钢琴采样 **不** 缓存在仓库内，始终从 `~/Piano`（用户主目录下 `Piano/`）实时读取，并通过 `SAMPLE_SOUND_CACHE` 在内存中复用。
+> Piano samples are **not** cached in the repo; they are always read in real time from `~/Piano` (the `Piano/` under the user's home directory), and reused in memory via `SAMPLE_SOUND_CACHE`.
 
 ---
 
-## 🎵 曲谱与 88 键音频的映射
+## 🎵 Mapping of Sheet Music and 88-key Audio
 
-### 1. 88 键采样如何对应到音符
+### 1. How 88-key samples correspond to notes
 
-`game.py` 将 88 个 wav 与标准音名一一绑定：`NOTE_NAMES_88` 从 **A0（MIDI 21）** 到 **C8（MIDI 108）** 排列，`tone(1).wav` ~ `tone(88).wav` 依次对应。通过 `NOTE_INDEX_LOOKUP` / `NOTE_TO_MIDI` 完成「音名（含 `Db`/`Eb` 等降号别名）↔ 索引 ↔ MIDI 编号」的三向查表，因此升降号音也能正确命中采样。
+`game.py` binds the 88 wavs one-to-one with standard note names: `NOTE_NAMES_88` is arranged from **A0 (MIDI 21)** to **C8 (MIDI 108)**, and `tone(1).wav` ~ `tone(88).wav` correspond in order. Through `NOTE_INDEX_LOOKUP` / `NOTE_TO_MIDI`, a three-way lookup of "note name (including `Db`/`Eb` and other flat aliases) ↔ index ↔ MIDI number" is completed, so sharp/flat notes can also correctly hit the sample.
 
-### 2. 曲谱中的简谱如何落到具体音
+### 2. How the numbered notation in the sheet music falls onto specific notes
 
-每首曲谱在 `PianoSheet.get_song()` 中以「简谱数字 + 八度符号」描述，例如 `'1'`、`'5'`、`'1''`（高八度）、`'6'`、`'7'`，并配一张 `scale_notes` 映射表把简谱数字翻译成带八度的真实音名：
+Each song is described in `PianoSheet.get_song()` with "numbered notation digit + octave symbol", e.g. `'1'`, `'5'`, `'1''` (one octave higher), `'6'`, `'7'`, with a `scale_notes` mapping table translating the numbered notation digits into real note names with octave:
 
-| 曲谱 | 调性 | scale_notes 示例 | 说明 |
+| Song | Key | scale_notes example | Description |
 | --- | --- | --- | --- |
-| Twinkle Twinkle | C | `1→C4, 2→D4 … 7→B4` | C 大调，中音区 |
-| Happy Birthday | C | `5→G4 … 1'→C5 … 4'→F5` | 含高八度 |
-| Jingle Bells | C | `1→C4 … 5→G4` | C 大调五音 |
-| Farewell（送别） | C | `7̣→B3 … 1→C4 … 4'→F5` | 含低音 B3，音域 B3–F5 |
-| Ode to Joy | C | `1→C4 … 7'→B5, 1''→C6` | 音域 C4–C6 |
-| Moonlight Sonata | C#m | `3→E4, 5→G#4 … 3'→E5` | 升号调（含 G#/D#） |
-| Night Piano No.5 | C | `1→C4 … b3'→Eb5 … b7''→Bb6` | 含降号（Eb/Bb），音域 C4–Bb6 |
+| Twinkle Twinkle | C | `1→C4, 2→D4 … 7→B4` | C major, middle register |
+| Happy Birthday | C | `5→G4 … 1'→C5 … 4'→F5` | Includes higher octave |
+| Jingle Bells | C | `1→C4 … 5→G4` | C major five notes |
+| Farewell | C | `7̣→B3 … 1→C4 … 4'→F5` | Includes low B3, range B3–F5 |
+| Ode to Joy | C | `1→C4 … 7'→B5, 1''→C6` | Range C4–C6 |
+| Moonlight Sonata | C#m | `3→E4, 5→G#4 … 3'→E5` | Sharp key (includes G#/D#) |
+| Night Piano No.5 | C | `1→C4 … b3'→Eb5 … b7''→Bb6` | Includes flats (Eb/Bb), range C4–Bb6 |
 
-游戏循环按 `notes` 列表（每个元素为 `(简谱数字, 时值)`）依次下落音符；当玩家命中时，先用 `parse_note_name_simple()` 把简谱数字解析为 `(音名, 八度)`，再经 `get_sample_file_for_note()` 映射到 `tone(n).wav` 并播放，从而实现「简谱 → 真实钢琴采样」的闭环。
+The game loop drops notes one by one according to the `notes` list (each element is `(numbered notation digit, duration)`); when the player hits, first use `parse_note_name_simple()` to parse the numbered notation digit into `(note name, octave)`, then map via `get_sample_file_for_note()` to `tone(n).wav` and play, thus realizing the closed loop of "numbered notation → real piano sample".
 
-### 3. 曲谱来源
+### 3. Sheet music source
 
-> 游戏内置曲谱（Twinkle Twinkle / Happy Birthday / Jingle Bells / Farewell / Ode to Joy / Moonlight Sonata / Night Piano No.5 等）均由作者根据**网络上的乐曲简谱**人工整理、转换为上述简谱数字格式而来，仅用于演示与学习，版权归原曲作者所有。
+> The built-in songs (Twinkle Twinkle / Happy Birthday / Jingle Bells / Farewell / Ode to Joy / Moonlight Sonata / Night Piano No.5, etc.) are manually compiled by the author based on **online sheet music in numbered notation**, converted into the above numbered notation digit format, for demonstration and learning only; copyright belongs to the original song authors.
 
 ---
 
-## 🚧 目前存在的问题
+## 🚧 Current Issues
 
-- 背景可改为**动态背景**（如流动渐变、粒子）替代当前静态/单图背景。
-- 不同按键生效时可播放**不同的音效**（如确认/返回/选曲提示音），提升交互反馈。
+- The background could be changed to a **dynamic background** (e.g. flowing gradient, particles) instead of the current static/single-image background.
+- Different sound effects could be played when different buttons take effect (e.g. confirm/back/song-select prompt sounds), improving interaction feedback.
 
 ---
 
 ## 📄 License
 
-本项目以 MIT License 开源，详见 [LICENSE](LICENSE)。
+This project is open-sourced under the MIT License, see [LICENSE](LICENSE).
 
-钢琴采样来源：[open-source-toolkit/870f3](https://gitcode.com/open-source-toolkit/870f3.git)，版权归原作者所有，仅用于学习与非商业用途。
+Piano sample source: [open-source-toolkit/870f3](https://gitcode.com/open-source-toolkit/870f3.git), copyright belongs to the original author, for learning and non-commercial use only.
